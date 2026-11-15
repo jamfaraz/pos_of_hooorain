@@ -43,16 +43,17 @@ abstract final class AppTheme {
     required Color primary,
     required Color accent,
   }) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      brightness: brightness,
-    ).copyWith(
-      primary: primary,
-      secondary: accent,
-      surface: surface,
-      error: AppColors.bad,
-      onSurface: text,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: primary,
+          brightness: brightness,
+        ).copyWith(
+          primary: primary,
+          secondary: accent,
+          surface: surface,
+          error: AppColors.bad,
+          onSurface: text,
+        );
     final baseTextTheme = GoogleFonts.plusJakartaSansTextTheme(
       ThemeData(brightness: brightness).textTheme,
     ).apply(bodyColor: text, displayColor: text);
@@ -90,6 +91,7 @@ abstract final class AppTheme {
         filled: true,
         fillColor: surfaceAlt,
         hintStyle: TextStyle(color: subtext.withValues(alpha: 0.8)),
+        labelStyle: TextStyle(color: subtext),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 13,
@@ -106,6 +108,15 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(buttonRadius),
           borderSide: BorderSide(color: primary, width: 1.4),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(buttonRadius),
+          borderSide: BorderSide(color: AppColors.bad.withValues(alpha: 0.8)),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(buttonRadius),
+          borderSide: const BorderSide(color: AppColors.bad, width: 1.4),
+        ),
+        floatingLabelStyle: TextStyle(color: primary),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -127,10 +138,70 @@ abstract final class AppTheme {
           ),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: text,
+          side: BorderSide(color: line),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(buttonRadius),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceAlt,
+        selectedColor: AppColors.primarySoft,
+        secondarySelectedColor: AppColors.primarySoft,
+        labelStyle: TextStyle(color: text, fontWeight: FontWeight.w600),
+        side: BorderSide(color: line),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: primary,
+        unselectedLabelColor: subtext,
+        labelStyle: baseTextTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: baseTextTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w500,
+        ),
+        indicatorColor: primary,
+        dividerColor: line,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(drawerRadius),
+          side: BorderSide(color: line),
+        ),
+      ),
+      datePickerTheme: DatePickerThemeData(
+        backgroundColor: surface,
+        headerBackgroundColor: primary,
+        headerForegroundColor: brightness == Brightness.dark
+            ? AppColors.darkBackground
+            : Colors.white,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: primary,
+        linearTrackColor: line,
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        thumbColor: WidgetStatePropertyAll(subtext.withValues(alpha: 0.35)),
+        radius: const Radius.circular(10),
+        thickness: const WidgetStatePropertyAll(6),
+      ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return primary;
           return null;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primary.withValues(alpha: 0.28);
+          }
+          return line;
         }),
       ),
     );

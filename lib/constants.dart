@@ -29,11 +29,10 @@ Color dimGreyColor = const Color.fromRGBO(50, 50, 50, 0.2);
 
 // const Color KpurpleColor = Color(0xFF55185D);
 const Color kSplashColor = Color(0xFF472D2D);
-const Color kGreenColor = Color(0xFF00BF63);
-// const Color kPrimaryColor = Color(0xFF673AB7 );
-const Color kPrimaryColor = Color(0xFF0F6E56 );
+const Color kGreenColor = AppColors.primary;
+const Color kPrimaryColor = AppColors.primary;
 
 const Color kblack = Colors.black;
-const Color kYellowColor = Color(0xFFFF5E5E );
-const Color kBlueColor = Color(0xFF4A90E2);
-const Color kRedColor = Color(0xFFFF0000);
+const Color kYellowColor = Color(0xFFE9A23B);
+const Color kBlueColor = AppColors.info;
+const Color kRedColor = AppColors.bad;

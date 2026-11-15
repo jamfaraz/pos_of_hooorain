@@ -1,496 +1,332 @@
+import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
-import 'package:hoorain_pos/widgets/backbutton.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../constants.dart';
 import '../../controllers/sales_controller.dart';
 import '../../models/order_model.dart';
-import '../../models/user_model.dart';
+import '../../utils/money.dart';
+import '../../widgets/app_loader.dart';
+import '../../widgets/app_table.dart';
+import '../../widgets/empty_state.dart';
+import '../../widgets/page_header.dart';
+import '../../widgets/retry_widget.dart';
 
 class SalesScreen extends StatelessWidget {
   SalesScreen({super.key});
 
   final SalesController controller = Get.put(SalesController());
-  final currency = NumberFormat.currency(
-    locale: 'en_PK',
-    symbol: 'Rs ',
-    decimalDigits: 0,
-  );
-  final dateFmt = DateFormat('dd MMM, hh:mm a');
+  final _dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F7),
-      body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(
-            child: CircularProgressIndicator(color: kPrimaryColor),
-          );
-        }
-        if (controller.hasError.value) {
-          return _ErrorState(
-            message: controller.errorMessage.value,
-            onRetry: controller.refresh,
-          );
-        }
-
-        return RefreshIndicator(
-          color: kPrimaryColor,
-          onRefresh: controller.refresh,
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    _Header(controller: controller, currency: currency),
-                    _RangeSelector(controller: controller),
-                  ],
-                ),
-              ),
-              if (controller.statusBreakdown.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: _StatusBreakdown(controller: controller),
-                ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Order History',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1C1C1E),
-                        ),
-                      ),
-                      Text(
-                        '${controller.rangeLabel} · ${controller.filteredOrders.length} orders',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.black45,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (controller.filteredOrders.isEmpty)
-                SliverToBoxAdapter(child: _EmptyState())
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _OrderTile(
-                        order: controller.filteredOrders[index],
-                        controller: controller,
-                        dateFmt: dateFmt,
-                        currency: currency,
-                      ),
-                      childCount: controller.filteredOrders.length,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      }),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Header
-// ---------------------------------------------------------------------------
-
-class _Header extends StatelessWidget {
-  const _Header({required this.controller, required this.currency});
-
-  final SalesController controller;
-  final NumberFormat currency;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(
-        20,
-        MediaQuery.of(context).padding.top + 10,
-        20,
-        20,
-      ),
-      decoration: const BoxDecoration(
-        color: kPrimaryColor,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: BackNavigatingButton(color: Colors.white),
-              ),
-              Text(
-                'Sales Overview',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              InkWell(
-                onTap: controller.refresh,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Iconsax.refresh,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Obx(
-            () => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'TOTAL SALES',
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white60,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  currency.format(controller.totalSales.value),
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Text(
-                      '${controller.totalOrders.value} orders',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.white60,
-                      ),
-                    ),
-                    Text(
-                      '  ·  ',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: Colors.white60,
-                      ),
-                    ),
-                    Flexible(
-                      child: Text(
-                        '${currency.format(controller.deliveredRevenue.value)} delivered',
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: Colors.white60,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PageHeader(
+          title: 'Sales and profit',
+          subtitle:
+              'Review counter and online sales across the selected period.',
+          actions: [
+            OutlinedButton.icon(
+              onPressed: controller.refresh,
+              icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 18),
+              label: const Text('Refresh'),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        _RangeControls(controller: controller),
+        const SizedBox(height: 18),
+        Expanded(
+          child: Obx(() {
+            if (controller.isLoading.value) {
+              return const AppLoader(label: 'Loading sales...');
+            }
+            if (controller.hasError.value) {
+              return ErrorRetryWidget(
+                errorMessage: controller.errorMessage.value,
+                onRetry: controller.refresh,
+              );
+            }
+            if (controller.filteredOrders.isEmpty) {
+              return const EmptyState(
+                title: 'No sales in this period',
+                message: 'Choose a different date range to view sales.',
+                icon: PhosphorIconsRegular.receipt,
+              );
+            }
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 1200
+                    ? 4
+                    : constraints.maxWidth >= 700
+                    ? 2
+                    : 1;
+                final gap = 12.0;
+                final cardWidth =
+                    (constraints.maxWidth - gap * (columns - 1)) / columns;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: gap,
+                      runSpacing: gap,
+                      children: [
+                        _MetricCard(
+                          width: cardWidth,
+                          label: 'Total sales',
+                          value: Money.rs(controller.totalSales.value),
+                          icon: PhosphorIconsRegular.currencyDollar,
+                          color: theme.colorScheme.primary,
+                          note: controller.rangeLabel,
+                        ),
+                        _MetricCard(
+                          width: cardWidth,
+                          label: 'Orders',
+                          value: '${controller.totalOrders.value}',
+                          icon: PhosphorIconsRegular.receipt,
+                          color: theme.colorScheme.secondary,
+                          note:
+                              '${controller.filteredOrders.length} in this view',
+                        ),
+                        _MetricCard(
+                          width: cardWidth,
+                          label: 'Delivered sales',
+                          value: Money.rs(controller.deliveredRevenue.value),
+                          icon: PhosphorIconsRegular.checkCircle,
+                          color: AppColors.ok,
+                          note: 'Completed orders',
+                        ),
+                        _MetricCard(
+                          width: cardWidth,
+                          label: 'Order statuses',
+                          value: '${controller.statusBreakdown.length}',
+                          icon: PhosphorIconsRegular.chartBar,
+                          color: AppColors.info,
+                          note: 'Statuses in this period',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _StatusSummary(controller: controller),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Order history',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${controller.rangeLabel} · ${controller.filteredOrders.length} orders',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: constraints.maxWidth >= 900
+                          ? _SalesTable(
+                              orders: controller.filteredOrders,
+                              dateFormat: _dateFormat,
+                            )
+                          : RefreshIndicator(
+                              color: theme.colorScheme.primary,
+                              onRefresh: controller.refresh,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                itemCount: controller.filteredOrders.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (context, index) =>
+                                    _SalesOrderCard(
+                                      order: controller.filteredOrders[index],
+                                      dateFormat: _dateFormat,
+                                    ),
+                              ),
+                            ),
+                    ),
+                  ],
+                );
+              },
+            );
+          }),
+        ),
+      ],
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Range selector — segmented control + custom date range button
-// ---------------------------------------------------------------------------
-
-class _RangeSelector extends StatelessWidget {
-  const _RangeSelector({required this.controller});
+class _RangeControls extends StatelessWidget {
+  const _RangeControls({required this.controller});
 
   final SalesController controller;
 
-  static const Map<SalesRange, String> _labels = {
-    SalesRange.today: 'Today',
-    SalesRange.thisWeek: '7 Days',
-    SalesRange.thisMonth: '30 Days',
-  };
-
-  static Widget _themed(BuildContext context, Widget? child) {
-    final base = Theme.of(context);
-    return Theme(
-      data: base.copyWith(
-        colorScheme: base.colorScheme.copyWith(
-          primary: kPrimaryColor,
-          surface: Colors.white,
-        ),
-        dialogBackgroundColor: Colors.white,
-        datePickerTheme: DatePickerThemeData(
-          backgroundColor: Colors.white,
-          headerBackgroundColor: kPrimaryColor,
-          headerForegroundColor: Colors.white,
-          headerHeadlineStyle: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-          headerHelpStyle: GoogleFonts.poppins(
-            fontSize: 10,
-            color: Colors.white70,
-          ),
-          weekdayStyle: GoogleFonts.poppins(
-            fontSize: 10,
-            color: Colors.black45,
-          ),
-          dayStyle: GoogleFonts.poppins(fontSize: 11),
-          yearStyle: GoogleFonts.poppins(fontSize: 11),
-          rangePickerBackgroundColor: Colors.white,
-          rangeSelectionBackgroundColor: kPrimaryColor.withOpacity(0.12),
-          // Today's date: primary text normally, white when it is selected
-          // (selected day is filled with primary, so primary text vanished).
-          todayForegroundColor: MaterialStateProperty.resolveWith((states) {
-            if (states.contains(MaterialState.selected)) return Colors.white;
-            return kPrimaryColor;
-          }),
-          dayOverlayColor: MaterialStateProperty.all(
-            kPrimaryColor.withOpacity(0.08),
-          ),
-          elevation: 1,
-        ),
-      ),
-      child: MediaQuery(
-        data: MediaQuery.of(
-          context,
-        ).copyWith(textScaler: const TextScaler.linear(0.85)),
-        child: child!,
-      ),
-    );
-  }
-
-  Future<void> _pickSingleDate(BuildContext context) async {
+  Future<void> _selectDay(BuildContext context) async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
+    final date = await showDatePicker(
       context: context,
       firstDate: DateTime(now.year - 2),
       lastDate: now,
       initialDate: controller.singleDate.value ?? now,
-      builder: _themed,
     );
-    if (picked != null) controller.setSingleDate(picked);
+    if (date != null) controller.setSingleDate(date);
   }
 
-  Future<void> _pickCustomRange(BuildContext context) async {
+  Future<void> _selectRange(BuildContext context) async {
     final now = DateTime.now();
-    final picked = await showDateRangePicker(
+    final range = await showDateRangePicker(
       context: context,
       firstDate: DateTime(now.year - 2),
       lastDate: now,
       initialDateRange:
           controller.customRange.value ??
           DateTimeRange(start: now.subtract(const Duration(days: 6)), end: now),
-      builder: _themed,
     );
-    if (picked != null) controller.setCustomRange(picked);
+    if (range != null) controller.setCustomRange(range);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Obx(() {
-          final selected = controller.selectedRange.value;
-          return Row(
-            children: [
-              ..._labels.entries.map((e) {
-                final isSelected = selected == e.key;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => controller.applyRange(e.key),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? kPrimaryColor : Colors.transparent,
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        e.value,
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : Colors.black54,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-              GestureDetector(
-                onTap: () => _pickSingleDate(context),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected == SalesRange.singleDay
-                        ? kPrimaryColor
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Icon(
-                    Iconsax.calendar_tick,
-                    size: 18,
-                    color: selected == SalesRange.singleDay
-                        ? Colors.white
-                        : Colors.black45,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () => _pickCustomRange(context),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected == SalesRange.custom
-                        ? kPrimaryColor
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Icon(
-                    Iconsax.calendar_1,
-                    size: 18,
-                    color: selected == SalesRange.custom
-                        ? Colors.white
-                        : Colors.black45,
-                  ),
-                ),
+    final theme = Theme.of(context);
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Obx(
+          () => SegmentedButton<SalesRange>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: SalesRange.today, label: Text('Today')),
+              ButtonSegment(value: SalesRange.thisWeek, label: Text('7 days')),
+              ButtonSegment(
+                value: SalesRange.thisMonth,
+                label: Text('30 days'),
               ),
             ],
-          );
-        }),
-      ),
+            selected: {controller.selectedRange.value},
+            onSelectionChanged: (selected) =>
+                controller.applyRange(selected.first),
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _selectDay(context),
+          icon: const Icon(PhosphorIconsRegular.calendarBlank, size: 18),
+          label: Obx(
+            () => Text(
+              controller.selectedRange.value == SalesRange.singleDay &&
+                      controller.singleDate.value != null
+                  ? DateFormat(
+                      'dd MMM yyyy',
+                    ).format(controller.singleDate.value!)
+                  : 'Choose day',
+            ),
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _selectRange(context),
+          icon: const Icon(PhosphorIconsRegular.calendarDots, size: 18),
+          label: const Text('Custom range'),
+        ),
+        Obx(
+          () => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              controller.rangeLabel,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Status breakdown
-// ---------------------------------------------------------------------------
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({
+    required this.width,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.note,
+  });
 
-class _StatusBreakdown extends StatelessWidget {
-  const _StatusBreakdown({required this.controller});
-
-  final SalesController controller;
-
-  Color _colorFor(String status) {
-    switch (status) {
-      case 'Delivered':
-        return kGreenColor;
-      case 'Accepted':
-        return kBlueColor;
-      case 'Pending':
-        return kYellowColor;
-      case 'Rejected':
-      case 'Cancelled':
-        return kRedColor;
-      default:
-        return Colors.grey;
-    }
-  }
+  final double width;
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String note;
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-        child: SizedBox(
-          height: 30,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: controller.statusBreakdown.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (context, i) {
-              final entry = controller.statusBreakdown.entries.elementAt(i);
-              final color = _colorFor(entry.key);
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: width,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: color.withOpacity(0.3)),
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                child: Icon(icon, size: 21, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${entry.key} · ${entry.value}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: color,
+                      label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      note,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
       ),
@@ -498,287 +334,220 @@ class _StatusBreakdown extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Order tile — fetches live customer info by userId, taps through to detail
-// ---------------------------------------------------------------------------
+class _StatusSummary extends StatelessWidget {
+  const _StatusSummary({required this.controller});
 
-class _OrderTile extends StatelessWidget {
-  const _OrderTile({
-    required this.order,
-    required this.controller,
-    required this.dateFmt,
-    required this.currency,
-  });
-
-  final OrderModel order;
   final SalesController controller;
-  final DateFormat dateFmt;
-  final NumberFormat currency;
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Delivered':
-        return kGreenColor;
-      case 'Accepted':
-        return kBlueColor;
-      case 'Pending':
-        return kYellowColor;
-      case 'Rejected':
-      case 'Cancelled':
-        return kRedColor;
-      default:
-        return Colors.grey;
-    }
-  }
+  Color _color(BuildContext context, String status) => switch (status) {
+    'Delivered' => AppColors.ok,
+    'Accepted' => AppColors.info,
+    'Pending' => AppColors.warning,
+    'Rejected' || 'Cancelled' => Theme.of(context).colorScheme.error,
+    _ => Theme.of(context).colorScheme.onSurfaceVariant,
+  };
 
   @override
   Widget build(BuildContext context) {
-    final itemsCount = order.items.length;
-    final statusColor = _statusColor(order.status);
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () => Get.toNamed('/orders/detail', arguments: order),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.black.withAlpha(38)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+    return Obx(
+      () => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: controller.statusBreakdown.entries.map((entry) {
+          final color = _color(context, entry.key);
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FutureBuilder<UserModel?>(
-              future: controller.getCustomer(order.userId),
-              builder: (context, snapshot) {
-                final user = snapshot.data;
-                final hasPhoto = user?.image != null && user!.image!.isNotEmpty;
-                final displayName = user?.fullName ?? order.userName;
-                final initial = displayName.isNotEmpty
-                    ? displayName[0].toUpperCase()
-                    : '?';
-
-                if (hasPhoto) {
-                  return CircleAvatar(
-                    radius: 21,
-                    backgroundImage: NetworkImage(user.image!),
-                  );
-                }
-                return CircleAvatar(
-                  radius: 21,
-                  backgroundColor: kPrimaryColor.withOpacity(0.1),
-                  child: Text(
-                    initial,
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w700,
-                      color: kPrimaryColor,
-                      fontSize: 15,
-                    ),
-                  ),
-                );
-              },
+            child: Text(
+              '${entry.key} · ${entry.value}',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _SalesTable extends StatelessWidget {
+  const _SalesTable({required this.orders, required this.dateFormat});
+
+  final List<OrderModel> orders;
+  final DateFormat dateFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AppTable(
+      minWidth: 1050,
+      columns: const [
+        DataColumn2(label: Text('Bill / order'), size: ColumnSize.M),
+        DataColumn2(label: Text('Date'), size: ColumnSize.L),
+        DataColumn2(label: Text('Customer'), size: ColumnSize.L),
+        DataColumn2(label: Text('Channel')),
+        DataColumn2(label: Text('Items'), numeric: true),
+        DataColumn2(label: Text('Payment')),
+        DataColumn2(label: Text('Total'), numeric: true),
+        DataColumn2(label: Text('Status')),
+      ],
+      rows: orders.map((order) {
+        return DataRow(
+          onSelectChanged: (_) =>
+              Get.toNamed('/orders/detail', arguments: order),
+          cells: [
+            DataCell(
+              Text(
+                '#${order.orderId ?? order.id}',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            DataCell(Text(dateFormat.format(order.orderDate))),
+            DataCell(
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: FutureBuilder<UserModel?>(
-                          future: controller.getCustomer(order.userId),
-                          builder: (context, snapshot) {
-                            final user = snapshot.data;
-                            final name = user?.fullName ?? order.userName;
-                            final phone = user?.phoneNumber ?? order.userPhone;
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (phone != null && phone.isNotEmpty)
-                                  Text(
-                                    phone,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 10,
-                                      color: Colors.black38,
-                                    ),
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                      Text(
-                        currency.format(order.total),
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: kPrimaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
                   Text(
-                    '#${order.orderId ?? order.id} · $itemsCount item${itemsCount == 1 ? '' : 's'}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 10.5,
-                      color: Colors.black.withAlpha(177),
+                    order.userName.isEmpty
+                        ? 'Walk-in customer'
+                        : order.userName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  if (order.userPhone.isNotEmpty)
+                    Text(
+                      order.userPhone,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Iconsax.clock, size: 12, color: Colors.black38),
-                      const SizedBox(width: 4),
-                      Text(
-                        dateFmt.format(order.orderDate),
-                        style: GoogleFonts.poppins(
-                          fontSize: 10.5,
-                          color: Colors.black45,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 9,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          order.status,
-                          style: GoogleFonts.poppins(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
+            DataCell(Text(order.channel)),
+            DataCell(Text('${order.items.length}')),
+            DataCell(Text(order.paymentMethod)),
+            DataCell(
+              Text(
+                Money.rs(order.total),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            DataCell(_StatusBadge(status: order.status)),
           ],
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _SalesOrderCard extends StatelessWidget {
+  const _SalesOrderCard({required this.order, required this.dateFormat});
+
+  final OrderModel order;
+  final DateFormat dateFormat;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Get.toNamed('/orders/detail', arguments: order),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '#${order.orderId ?? order.id}',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  _StatusBadge(status: order.status),
+                ],
+              ),
+              const SizedBox(height: 7),
+              Text(
+                order.userName.isEmpty ? 'Walk-in customer' : order.userName,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '${order.channel} · ${order.items.length} items · ${dateFormat.format(order.orderDate)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      order.paymentMethod,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    Money.rs(order.total),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Empty / error states
-// ---------------------------------------------------------------------------
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
 
-class _EmptyState extends StatelessWidget {
+  final String status;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 70),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: kPrimaryColor.withOpacity(0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Iconsax.receipt_2_1,
-              size: 40,
-              color: kPrimaryColor,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'No sales in this period',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Try a different date range',
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.black45),
-          ),
-        ],
+    final color = switch (status.toLowerCase()) {
+      'delivered' => AppColors.ok,
+      'accepted' => AppColors.info,
+      'pending' => AppColors.warning,
+      'cancelled' || 'rejected' => Theme.of(context).colorScheme.error,
+      _ => Theme.of(context).colorScheme.onSurfaceVariant,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
       ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
-
-  final String message;
-  final Future<void> Function() onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Iconsax.warning_2, size: 48, color: kRedColor),
-            const SizedBox(height: 12),
-            Text(
-              'Could not load sales',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.black54),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              style: ElevatedButton.styleFrom(backgroundColor: kPrimaryColor),
-              icon: const Icon(Iconsax.refresh, color: Colors.white, size: 16),
-              label: Text(
-                'Retry',
-                style: GoogleFonts.poppins(color: Colors.white),
-              ),
-            ),
-          ],
+      child: Text(
+        status,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

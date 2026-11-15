@@ -68,6 +68,18 @@ class ControlRoomService {
       .limit(pageSize)
       .snapshots();
 
+  Future<QuerySnapshot<Map<String, dynamic>>> fetchProductPage({
+    DocumentSnapshot<Map<String, dynamic>>? after,
+  }) {
+    Query<Map<String, dynamic>> query = _firestore
+        .collection('products')
+        .orderBy('name');
+    if (after != null) query = query.startAfterDocument(after);
+    return query.limit(pageSize).get();
+  }
+
+  String newBillNumber() => _firestore.collection('bills').doc().id;
+
   Stream<QuerySnapshot<Map<String, dynamic>>> watchRiders() => _firestore
       .collection('riders')
       .orderBy('name')
@@ -93,6 +105,9 @@ class ControlRoomService {
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchRecentBills() =>
       _firestore.collection('bills').limit(pageSize).snapshots();
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchCustomers() =>
+      _firestore.collection('users').limit(pageSize).snapshots();
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchStockMovements() =>
       _firestore
@@ -374,9 +389,12 @@ class ControlRoomService {
   }
 
   Future<String> createOrder(OrderRecord order) async {
-    final orderRef = _firestore
-        .collection(order.channel == 'counter' ? 'bills' : 'orders')
-        .doc();
+    final collection = _firestore.collection(
+      order.channel == 'counter' ? 'bills' : 'orders',
+    );
+    final orderRef = order.number.isEmpty
+        ? collection.doc()
+        : collection.doc(order.number);
     await _firestore.runTransaction((transaction) async {
       final productSnapshots =
           <String, DocumentSnapshot<Map<String, dynamic>>>{};

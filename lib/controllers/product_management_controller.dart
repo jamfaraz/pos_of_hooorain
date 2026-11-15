@@ -19,6 +19,7 @@ class ProductManagementController extends GetxController {
   final loadingMore = false.obs;
   final canLoadMore = false.obs;
   final error = RxnString();
+  final loadMoreError = RxnString();
   final search = ''.obs;
   final mode = 'all'.obs;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _productsSub;
@@ -35,6 +36,7 @@ class ProductManagementController extends GetxController {
   void reload() {
     loading.value = true;
     error.value = null;
+    loadMoreError.value = null;
     _productsSub?.cancel();
     _categoriesSub?.cancel();
     _offersSub?.cancel();
@@ -72,6 +74,7 @@ class ProductManagementController extends GetxController {
     final cursor = _lastProductDoc;
     if (cursor == null || loadingMore.value) return;
     loadingMore.value = true;
+    loadMoreError.value = null;
     try {
       final page = await _service.fetchPage(
         'products',
@@ -85,7 +88,7 @@ class ProductManagementController extends GetxController {
       _lastProductDoc = page.docs.isEmpty ? null : page.docs.last;
       canLoadMore.value = page.docs.length == ControlRoomService.pageSize;
     } catch (exception) {
-      error.value = exception.toString();
+      loadMoreError.value = exception.toString();
     } finally {
       loadingMore.value = false;
     }

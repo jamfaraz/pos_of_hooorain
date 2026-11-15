@@ -9,9 +9,10 @@ import '../services/admin_access_service.dart';
 import 'common_dialog.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({required this.child, super.key});
+  const AppShell({required this.child, this.topBarAction, super.key});
 
   final Widget child;
+  final Widget? topBarAction;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -91,6 +92,12 @@ class _AppShellState extends State<AppShell> {
         PhosphorIconsFill.chartLineUp,
       ),
       _NavItem(
+        'Expenses',
+        '/expenses',
+        PhosphorIconsRegular.wallet,
+        PhosphorIconsFill.wallet,
+      ),
+      _NavItem(
         'Reports',
         '/reports',
         PhosphorIconsRegular.chartBar,
@@ -168,64 +175,84 @@ class _AppShellState extends State<AppShell> {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final isDesktop = width >= 1100;
-        final showDrawer = width < 800;
-        final railWidth = isDesktop ? 244.0 : 80.0;
+        final showDrawer = width < 900;
+        final railWidth = isDesktop ? 233.0 : 80.0;
 
         return Focus(
           onKeyEvent: _handleKey,
           child: Scaffold(
             key: _scaffoldKey,
+            backgroundColor: theme.scaffoldBackgroundColor,
             drawer: showDrawer
                 ? Drawer(
-                    width: 280,
+                    width: 270,
                     child: SafeArea(
                       child: _navigationRail(expanded: true, inDrawer: true),
                     ),
                   )
                 : null,
-            body: Row(
-              children: [
-                if (!showDrawer)
-                  SizedBox(
-                    width: railWidth,
-                    child: _navigationRail(
-                      expanded: isDesktop,
-                      inDrawer: false,
-                    ),
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _topBar(
-                        context,
-                        showMenu: showDrawer,
-                        surface: theme.colorScheme.surface,
+            body: Padding(
+              padding: EdgeInsets.all(showDrawer ? 0 : 16),
+              child: Row(
+                children: [
+                  if (!showDrawer) ...[
+                    Container(
+                      width: railWidth,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: theme.dividerColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.045),
+                            blurRadius: 18,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 1680),
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                width < 600 ? 16 : 28,
-                                24,
-                                width < 600 ? 16 : 28,
-                                32,
-                              ),
-                              child: SizedBox(
-                                width: double.infinity,
-                                height: double.infinity,
-                                child: widget.child,
+                      child: _navigationRail(
+                        expanded: isDesktop,
+                        inDrawer: false,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                  ],
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _topBar(
+                          context,
+                          showMenu: showDrawer,
+                          surface: theme.scaffoldBackgroundColor,
+                        ),
+                        SizedBox(height: showDrawer ? 8 : 14),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1680),
+                              child: Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  showDrawer ? 14 : 4,
+                                  showDrawer ? 12 : 4,
+                                  showDrawer ? 14 : 4,
+                                  showDrawer ? 12 : 4,
+                                ),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  child: widget.child,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -241,11 +268,11 @@ class _AppShellState extends State<AppShell> {
     final theme = Theme.of(context);
     final themeController = Get.find<ThemeController>();
     return Container(
-      height: 72,
-      padding: EdgeInsets.symmetric(horizontal: showMenu ? 14 : 26),
+      height: 58,
+      padding: EdgeInsets.symmetric(horizontal: showMenu ? 8 : 0),
       decoration: BoxDecoration(
         color: surface,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
@@ -255,24 +282,15 @@ class _AppShellState extends State<AppShell> {
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               icon: const Icon(PhosphorIconsRegular.list),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
-          Text(
-            'Hoorain',
-            style: GoogleFonts.fraunces(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(width: 22),
-          if (!showMenu)
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerLeft,
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 450),
                 child: SizedBox(
-                  width: 390,
-                  height: 42,
+                  height: 44,
                   child: TextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
@@ -286,21 +304,54 @@ class _AppShellState extends State<AppShell> {
                       }
                     },
                     decoration: InputDecoration(
-                      hintText: 'Search products, orders...',
+                      hintText: showMenu
+                          ? 'Search products, bills...'
+                          : 'Search products, bills, customers',
                       prefixIcon: const Icon(
                         PhosphorIconsRegular.magnifyingGlass,
                         size: 19,
                       ),
-                      suffixText: '/',
+                      suffixIconConstraints: const BoxConstraints(
+                        minWidth: 42,
+                        minHeight: 40,
+                      ),
+                      suffixIcon: Container(
+                        margin: const EdgeInsets.all(5),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          border: Border.all(color: theme.dividerColor),
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Text(
+                          '/',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       isDense: true,
                     ),
                   ),
                 ),
               ),
-            )
-          else
-            const Spacer(),
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: themeController.isDark.value
+                ? 'Switch to light theme'
+                : 'Switch to dark theme',
+            onPressed: themeController.toggleTheme,
+            icon: Obx(
+              () => Icon(
+                themeController.isDark.value
+                    ? PhosphorIconsRegular.sun
+                    : PhosphorIconsRegular.moon,
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Notifications',
             onPressed: () => Get.toNamed('/notifications'),
@@ -325,19 +376,10 @@ class _AppShellState extends State<AppShell> {
             ],
             icon: const Icon(PhosphorIconsRegular.userCircle),
           ),
-          Obx(
-            () => IconButton(
-              tooltip: themeController.isDark.value
-                  ? 'Switch to light theme'
-                  : 'Switch to dark theme',
-              onPressed: themeController.toggleTheme,
-              icon: Icon(
-                themeController.isDark.value
-                    ? PhosphorIconsRegular.sun
-                    : PhosphorIconsRegular.moon,
-              ),
-            ),
-          ),
+          if (widget.topBarAction != null) ...[
+            const SizedBox(width: 6),
+            widget.topBarAction!,
+          ],
         ],
       ),
     );

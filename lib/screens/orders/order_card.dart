@@ -1,36 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:hoorain_pos/constants.dart';
-import 'package:hoorain_pos/models/order_model.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// A compact, information-dense order card for the Hoorain admin panel.
-///
-/// Shows order identity, status, customer, a small product-thumbnail
-/// preview (so staff can recognize a ghee / rice / detergent order at a
-/// glance without opening it), payment method, and the total.
+import '../../constants.dart';
+import '../../models/order_model.dart';
+import '../../utils/money.dart';
+
 class OrderCard extends StatelessWidget {
+  const OrderCard({super.key, required this.order, required this.onTap});
+
   final OrderModel order;
   final VoidCallback onTap;
 
-  const OrderCard({super.key, required this.order, required this.onTap});
-
-  Color get _statusColor {
-    switch (order.status.toLowerCase()) {
-      case 'pending':
-        return const Color(0xFFF5A524);
-      case 'cancelled':
-        return const Color(0xFFE5484D);
-      case 'delivered':
-        return const Color(0xFF17A34A);
-      default:
-        return kPrimaryColor;
-    }
-  }
+  Color _statusColor(BuildContext context) =>
+      switch (order.status.toLowerCase()) {
+        'pending' => AppColors.warning,
+        'cancelled' || 'rejected' => Theme.of(context).colorScheme.error,
+        'delivered' => AppColors.ok,
+        'accepted' || 'confirmed' || 'packed' => AppColors.info,
+        _ => Theme.of(context).colorScheme.primary,
+      };
 
   String get _displayId {
     final raw = order.orderId ?? order.id;
-    return raw.length > 8 ? raw.substring(0, 8) : raw;
+    return raw.length > 10 ? raw.substring(0, 10) : raw;
   }
 
   String get _formattedDateTime {
@@ -38,25 +30,28 @@ class OrderCard extends StatelessWidget {
     final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
     final period = date.hour >= 12 ? 'PM' : 'AM';
     final minute = date.minute.toString().padLeft(2, '0');
-    return '${date.day}/${date.month}/${date.year} • $hour:$minute $period';
+    return '${date.day}/${date.month}/${date.year} · $hour:$minute $period';
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final statusColor = _statusColor(context);
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14.r),
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14.r),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14.r),
-            border: Border.all(color: Colors.black.withAlpha(14)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.dividerColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(10),
-                blurRadius: 10,
+                color: Colors.black.withValues(alpha: 0.035),
+                blurRadius: 12,
                 offset: const Offset(0, 3),
               ),
             ],
@@ -66,37 +61,135 @@ class OrderCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  width: 5.w,
+                  width: 4,
                   decoration: BoxDecoration(
-                    color: _statusColor,
-                    borderRadius: BorderRadius.horizontal(left: Radius.circular(14.r)),
+                    color: statusColor,
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(16),
+                    ),
                   ),
                 ),
                 Expanded(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(14.w, 14.h, 14.w, 12.h),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHeaderRow(),
-                        SizedBox(height: 4.h),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    '#$_displayId',
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  if (order.isFirstOrder)
+                                    _chip(
+                                      context,
+                                      'First order',
+                                      colors.secondary,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            _chip(context, order.status, statusColor),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
                         Text(
                           _formattedDateTime,
-                          style: GoogleFonts.interTight(
-                            fontSize: 11.sp,
-                            color: Colors.grey.shade500,
-                            fontWeight: FontWeight.w500,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
                           ),
                         ),
                         Padding(
-                          padding: EdgeInsets.symmetric(vertical: 10.h),
-                          child: Divider(height: 1, color: Colors.grey.shade100),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Divider(height: 1, color: theme.dividerColor),
                         ),
-                        _buildCustomerRow(),
-                        SizedBox(height: 10.h),
-                        _buildItemsPreview(),
-                        SizedBox(height: 12.h),
-                        _buildFooterRow(),
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor: colors.primaryContainer,
+                              child: Text(
+                                order.userName.isNotEmpty
+                                    ? order.userName[0].toUpperCase()
+                                    : '?',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: colors.onPrimaryContainer,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    order.userName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    order.userPhone,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: colors.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildItemsPreview(context),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              PhosphorIconsRegular.package,
+                              size: 16,
+                              color: colors.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${order.items.length} item${order.items.length == 1 ? '' : 's'}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: _chip(
+                                context,
+                                order.paymentMethod.isEmpty
+                                    ? order.paymentStatus
+                                    : order.paymentMethod,
+                                colors.primary,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              Money.rs(order.total),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -109,238 +202,116 @@ class OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Text(
-                '#$_displayId',
-                style: GoogleFonts.interTight(
-                  fontSize: 13.5.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade900,
-                ),
-              ),
-              if (order.isFirstOrder) ...[
-                SizedBox(width: 6.w),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6C63FF).withAlpha(24),
-                    borderRadius: BorderRadius.circular(5.r),
-                  ),
-                  child: Text(
-                    'FIRST ORDER',
-                    style: GoogleFonts.interTight(
-                      fontSize: 8.5.sp,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF6C63FF),
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+  Widget _chip(BuildContext context, String label, Color color) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
         ),
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-          decoration: BoxDecoration(
-            color: _statusColor,
-            borderRadius: BorderRadius.circular(20.r),
-          ),
-          child: Text(
-            order.status.toUpperCase(),
-            style: GoogleFonts.interTight(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 10.sp,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildCustomerRow() {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 15.r,
-          backgroundColor: kPrimaryColor.withAlpha(24),
-          child: Text(
-            order.userName.isNotEmpty ? order.userName[0].toUpperCase() : '?',
-            style: GoogleFonts.interTight(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w700,
-              color: kPrimaryColor,
-            ),
-          ),
-        ),
-        SizedBox(width: 10.w),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                order.userName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.interTight(
-                  fontSize: 12.5.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade900,
-                ),
-              ),
-              Text(
-                order.userPhone,
-                style: GoogleFonts.interTight(fontSize: 11.sp, color: Colors.grey.shade500),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Small thumbnail strip so staff can recognize a ghee / rice / detergent
-  /// order at a glance, plus a one-line comma list of item names.
-  Widget _buildItemsPreview() {
+  Widget _buildItemsPreview(BuildContext context) {
     final items = order.items;
     if (items.isEmpty) return const SizedBox.shrink();
-
-    final previewItems = items.take(3).toList();
-    final remaining = items.length - previewItems.length;
-    final nameSummary = items.map((e) => e.productName).join(', ');
-
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final shown = items.take(3).toList();
+    final remaining = items.length - shown.length;
     return Container(
-      padding: EdgeInsets.all(8.w),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10.r),
-        border: Border.all(color: Colors.grey.shade100),
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
-          SizedBox(
-            height: 34.w,
-            child: Stack(
-              children: [
-                for (int i = 0; i < previewItems.length; i++)
-                  Padding(
-                    padding: EdgeInsets.only(left: i * 22.w),
-                    child: _ItemThumb(item: previewItems[i]),
-                  ),
-                if (remaining > 0)
-                  Padding(
-                    padding: EdgeInsets.only(left: previewItems.length * 22.w),
-                    child: Container(
-                      width: 34.w,
-                      height: 34.w,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        '+$remaining',
-                        style: GoogleFonts.interTight(
-                          fontSize: 9.5.sp,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+          for (var index = 0; index < shown.length; index++)
+            Padding(
+              padding: EdgeInsets.only(left: index == 0 ? 0 : 7),
+              child: _ItemThumb(item: shown[index]),
             ),
-          ),
-          SizedBox(width: previewItems.length * 22.w + (remaining > 0 ? 20.w : 0)),
+          if (remaining > 0) ...[
+            const SizedBox(width: 7),
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: colors.surfaceContainerHighest,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                '+$remaining',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              nameSummary,
+              items.map((item) => item.productName).join(', '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.interTight(
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade700,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFooterRow() {
-    return Row(
-      children: [
-        Icon(Icons.inventory_2_outlined, size: 15.sp, color: Colors.grey.shade500),
-        SizedBox(width: 5.w),
-        Text(
-          '${order.items.length} item${order.items.length == 1 ? '' : 's'}',
-          style: GoogleFonts.interTight(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey.shade700,
-          ),
-        ),
-        const Spacer(),
-        Text(
-          'Rs. ${order.total.toStringAsFixed(0)}',
-          style: GoogleFonts.interTight(
-            fontSize: 15.sp,
-            fontWeight: FontWeight.w800,
-            color: Colors.grey.shade900,
-          ),
-        ),
-      ],
     );
   }
 }
 
 class _ItemThumb extends StatelessWidget {
-  final OrderItem item;
   const _ItemThumb({required this.item});
+
+  final OrderItem item;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
-      width: 34.w,
-      height: 34.w,
+      width: 34,
+      height: 34,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.primaryContainer,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withAlpha(15), blurRadius: 3),
-        ],
+        border: Border.all(color: colors.surface, width: 2),
       ),
       clipBehavior: Clip.antiAlias,
-      child: (item.imageUrl != null && item.imageUrl!.isNotEmpty)
+      child: item.imageUrl?.isNotEmpty == true
           ? Image.network(
               item.imageUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => _fallbackIcon(),
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return Container(color: Colors.grey.shade100);
-              },
+              errorBuilder: (_, _, _) => _fallback(context),
+              loadingBuilder: (_, child, progress) =>
+                  progress == null ? child : _fallback(context),
             )
-          : _fallbackIcon(),
+          : _fallback(context),
     );
   }
 
-  Widget _fallbackIcon() {
-    return Container(
-      color: kPrimaryColor.withAlpha(20),
-      alignment: Alignment.center,
-      child: Icon(Icons.shopping_basket_outlined, size: 16.sp, color: kPrimaryColor),
-    );
-  }
+  Widget _fallback(BuildContext context) => Center(
+    child: Icon(
+      PhosphorIconsRegular.basket,
+      size: 16,
+      color: Theme.of(context).colorScheme.primary,
+    ),
+  );
 }

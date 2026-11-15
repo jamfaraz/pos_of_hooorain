@@ -5,18 +5,22 @@ class PageHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.actions = const [],
+    this.bottomSpacing = 22,
+    this.titleFontSize = 24,
     super.key,
   });
 
   final String title;
   final String? subtitle;
   final List<Widget> actions;
+  final double bottomSpacing;
+  final double titleFontSize;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
+      padding: EdgeInsets.only(bottom: bottomSpacing),
       child: Wrap(
         alignment: WrapAlignment.spaceBetween,
         crossAxisAlignment: WrapCrossAlignment.center,
@@ -31,7 +35,7 @@ class PageHeader extends StatelessWidget {
                 Text(
                   title,
                   style: textTheme.headlineSmall?.copyWith(
-                    fontSize: 24,
+                    fontSize: titleFontSize,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.5,
                   ),

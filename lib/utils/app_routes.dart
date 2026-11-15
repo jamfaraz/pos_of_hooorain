@@ -39,7 +39,9 @@ abstract final class AppRoutes {
       binding: OrderDetailBinding(),
       transition: Transition.noTransition,
       page: () => AdminRouteGuard(
-        child: OrderDetailScreen(order: Get.arguments as OrderModel),
+        child: AppShell(
+          child: OrderDetailScreen(order: Get.arguments as OrderModel),
+        ),
       ),
     ),
     _protected(
@@ -68,7 +70,12 @@ abstract final class AppRoutes {
       binding: CategoryManagementBinding(),
     ),
     _protected('/orders', const OrdersWorkspaceScreen()),
-    _protected('/billing', const BillingScreen(), binding: BillingBinding()),
+    _protected(
+      '/billing',
+      const BillingScreen(),
+      binding: BillingBinding(),
+      topBarAction: const BillingNewBillAction(),
+    ),
     _protected('/bill-history', SalesScreen()),
     _protected('/offers', const OffersScreen(), binding: OffersBinding()),
     _protected('/riders', const RidersScreen(), binding: RidersBinding()),
@@ -90,12 +97,15 @@ abstract final class AppRoutes {
     String path,
     Widget screen, {
     Bindings? binding,
+    Widget? topBarAction,
   }) {
     return GetPage(
       name: path,
       binding: binding,
       transition: Transition.noTransition,
-      page: () => AdminRouteGuard(child: AppShell(child: screen)),
+      page: () => AdminRouteGuard(
+        child: AppShell(topBarAction: topBarAction, child: screen),
+      ),
     );
   }
 

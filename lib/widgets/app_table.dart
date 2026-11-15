@@ -10,6 +10,10 @@ class AppTable extends StatelessWidget {
     this.minWidth = 720,
     this.emptyTitle = 'Nothing here yet',
     this.emptyState,
+    this.headingRowHeight = 48,
+    this.dataRowHeight = 58,
+    this.horizontalMargin = 16,
+    this.columnSpacing = 16,
     super.key,
   });
 
@@ -18,6 +22,10 @@ class AppTable extends StatelessWidget {
   final double minWidth;
   final String emptyTitle;
   final Widget? emptyState;
+  final double headingRowHeight;
+  final double dataRowHeight;
+  final double horizontalMargin;
+  final double columnSpacing;
 
   @override
   Widget build(BuildContext context) {
@@ -37,10 +45,10 @@ class AppTable extends StatelessWidget {
               rows: rows,
               minWidth: minWidth,
               fixedTopRows: 1,
-              headingRowHeight: 48,
-              dataRowHeight: 58,
-              horizontalMargin: 16,
-              columnSpacing: 16,
+              headingRowHeight: headingRowHeight,
+              dataRowHeight: dataRowHeight,
+              horizontalMargin: horizontalMargin,
+              columnSpacing: columnSpacing,
               headingRowColor: WidgetStatePropertyAll(
                 Theme.of(context).colorScheme.surfaceContainerHighest,
               ),

@@ -1,14 +1,16 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:hoorain_pos/constants.dart';
 import 'package:hoorain_pos/models/order_model.dart';
 import 'package:hoorain_pos/screens/orders/order_card.dart';
 import 'package:hoorain_pos/widgets/app_loader.dart';
+import 'package:hoorain_pos/widgets/app_table.dart';
+import 'package:hoorain_pos/widgets/empty_state.dart';
+import 'package:hoorain_pos/widgets/page_header.dart';
+import 'package:hoorain_pos/utils/money.dart';
 import '../../controllers/order_controller.dart';
-import '../../widgets/backbutton.dart';
 import '../../widgets/retry_widget.dart';
 
 enum OrderSort { newest, oldest, amountHigh, amountLow }
@@ -43,7 +45,12 @@ extension on OrderSort {
 
 class OrdersScreen extends StatefulWidget {
   final String orderStatus;
-  const OrdersScreen({super.key, required this.orderStatus});
+  final bool showHeader;
+  const OrdersScreen({
+    super.key,
+    required this.orderStatus,
+    this.showHeader = true,
+  });
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -58,7 +65,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
   String? _paymentMethodFilter;
   OrderSort _sort = OrderSort.newest;
   String _searchQuery = '';
-  bool _isSearching = false;
 
   @override
   void initState() {
@@ -126,32 +132,47 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Future<void> _openFilterSheet() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return _FilterSheet(
-          initialStartDate: _startDate,
-          initialEndDate: _endDate,
-          initialSort: _sort,
-          initialPaymentMethod: _paymentMethodFilter,
-          onApply: (start, end, sort, paymentMethod) {
-            setState(() {
-              _startDate = start;
-              _endDate = end;
-              _sort = sort;
-              _paymentMethodFilter = paymentMethod;
-            });
-            if (start != null && end != null) {
-              controller.filterOrdersByDateRange(start, end);
-            } else {
-              controller.fetchOrders(orderStatus: widget.orderStatus);
-            }
-          },
-        );
+    final isDesktop = MediaQuery.sizeOf(context).width >= 800;
+    final filterSheet = _FilterSheet(
+      asDialog: isDesktop,
+      initialStartDate: _startDate,
+      initialEndDate: _endDate,
+      initialSort: _sort,
+      initialPaymentMethod: _paymentMethodFilter,
+      onApply: (start, end, sort, paymentMethod) {
+        setState(() {
+          _startDate = start;
+          _endDate = end;
+          _sort = sort;
+          _paymentMethodFilter = paymentMethod;
+        });
+        if (start != null && end != null) {
+          controller.filterOrdersByDateRange(start, end);
+        } else {
+          controller.fetchOrders(orderStatus: widget.orderStatus);
+        }
       },
     );
+    if (isDesktop) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, maxHeight: 560),
+            child: filterSheet,
+          ),
+        ),
+      );
+    } else {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) => filterSheet,
+      );
+    }
   }
 
   void _clearAllFilters() {
@@ -162,160 +183,237 @@ class _OrdersScreenState extends State<OrdersScreen> {
       _sort = OrderSort.newest;
       _searchQuery = '';
       _searchController.clear();
-      _isSearching = false;
     });
     controller.fetchOrders(orderStatus: widget.orderStatus);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          if (_activeFilterCount > 0 || _searchQuery.isNotEmpty)
-            _buildActiveFilterBar(),
-          Expanded(
-            child: Obx(() {
-              if (controller.hasError.value) {
-                return Center(
-                  child: ErrorRetryWidget(
-                    onRetry: () =>
-                        controller.fetchOrders(orderStatus: widget.orderStatus),
-                    errorMessage: controller.errorMessage.value,
-                  ),
-                );
-              }
-
-              if (controller.isLoading.value) {
-                return const AppLoader(label: 'Loading orders...');
-              }
-
-              final filtered = _applyClientFilters(controller.orders);
-
-              if (filtered.isEmpty) {
-                return ErrorRetryWidget(
-                  onRetry: () {
-                    _clearAllFilters();
-                  },
-                  errorMessage: controller.orders.isEmpty
-                      ? 'No orders found for this status yet.'
-                      : 'No orders match your search or filters.',
-                );
-              }
-
-              return RefreshIndicator(
-                onRefresh: () async {
-                  await controller.fetchOrders(orderStatus: widget.orderStatus);
-                },
-                backgroundColor: Colors.white,
-                color: kGreenColor,
-                child: ListView.separated(
-                  padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 24.h),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => SizedBox(height: 14.h),
-                  itemBuilder: (context, index) {
-                    final order = filtered[index];
-                    return OrderCard(
-                      order: order,
-                      onTap: () =>
-                          Get.toNamed('/orders/detail', arguments: order),
-                    );
-                  },
-                ),
-              );
-            }),
-          ),
-        ],
-      ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      surfaceTintColor: Colors.white,
-      leading: const BackNavigatingButton(color: kblack),
-      titleSpacing: 0,
-      title: _isSearching
-          ? TextField(
-              controller: _searchController,
-              autofocus: true,
-              cursorColor: kPrimaryColor,
-              style: GoogleFonts.interTight(fontSize: 14.sp, color: kblack),
-              decoration: InputDecoration(
-                hintText: 'Search by order ID, name or phone',
-                hintStyle: GoogleFonts.interTight(
-                  fontSize: 13.sp,
-                  color: Colors.grey.shade500,
-                ),
-                border: InputBorder.none,
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.showHeader)
+          PageHeader(
+            title: 'Online orders',
+            subtitle: 'Review customer orders and keep each delivery moving.',
+            actions: [
+              OutlinedButton.icon(
+                onPressed: () =>
+                    controller.fetchOrders(orderStatus: widget.orderStatus),
+                icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 18),
+                label: const Text('Refresh'),
               ),
-            )
-          : Text(
-              '${widget.orderStatus} Orders',
-              style: GoogleFonts.interTight(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w700,
-                color: kblack,
-              ),
-            ),
-      centerTitle: !_isSearching,
-      actions: [
-        IconButton(
-          icon: Icon(
-            _isSearching ? Icons.close_rounded : Icons.search_rounded,
-            color: kblack,
+            ],
           ),
-          onPressed: () {
-            setState(() {
-              if (_isSearching) {
-                _searchController.clear();
-                _searchQuery = '';
-              }
-              _isSearching = !_isSearching;
-            });
-          },
-        ),
-        Stack(
-          alignment: Alignment.center,
+        Row(
           children: [
-            IconButton(
-              icon: const Icon(Icons.tune_rounded, color: kblack),
-              onPressed: _openFilterSheet,
-            ),
-            if (_activeFilterCount > 0)
-              Positioned(
-                top: 10,
-                right: 8,
-                child: Container(
-                  padding: EdgeInsets.all(3.w),
-                  decoration: const BoxDecoration(
-                    color: kRedColor,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: BoxConstraints(minWidth: 16.w, minHeight: 16.w),
-                  child: Text(
-                    '$_activeFilterCount',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.interTight(
-                      fontSize: 9.sp,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+            Expanded(
+              child: SizedBox(
+                height: 44,
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    prefixIcon: Icon(PhosphorIconsRegular.magnifyingGlass),
+                    hintText: 'Search order, customer or phone',
                   ),
                 ),
               ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: _openFilterSheet,
+              icon: const Icon(PhosphorIconsRegular.funnel, size: 18),
+              label: Text(
+                _activeFilterCount == 0
+                    ? 'Filter'
+                    : 'Filter $_activeFilterCount',
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: 'Refresh orders',
+              onPressed: () =>
+                  controller.fetchOrders(orderStatus: widget.orderStatus),
+              icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 19),
+            ),
           ],
         ),
-        SizedBox(width: 6.w),
+        if (_activeFilterCount > 0 || _searchQuery.isNotEmpty)
+          _buildActiveFilterBar(context),
+        const SizedBox(height: 8),
+        Expanded(
+          child: Obx(() {
+            if (controller.hasError.value) {
+              return ErrorRetryWidget(
+                onRetry: () =>
+                    controller.fetchOrders(orderStatus: widget.orderStatus),
+                errorMessage: controller.errorMessage.value,
+              );
+            }
+            if (controller.isLoading.value) {
+              return const AppLoader(label: 'Loading orders...');
+            }
+            final filtered = _applyClientFilters(controller.orders);
+            if (filtered.isEmpty) {
+              return EmptyState(
+                title: controller.orders.isEmpty
+                    ? 'No ${widget.orderStatus.toLowerCase()} orders'
+                    : 'No matching orders',
+                message: controller.orders.isEmpty
+                    ? 'New customer orders will appear here.'
+                    : 'Try changing your search or filters.',
+                actionLabel: controller.orders.isEmpty
+                    ? 'Refresh orders'
+                    : 'Clear filters',
+                onAction: controller.orders.isEmpty
+                    ? () => controller.fetchOrders(
+                        orderStatus: widget.orderStatus,
+                      )
+                    : _clearAllFilters,
+              );
+            }
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth >= 800) {
+                  return _desktopTable(context, filtered);
+                }
+                return RefreshIndicator(
+                  onRefresh: () =>
+                      controller.fetchOrders(orderStatus: widget.orderStatus),
+                  color: theme.colorScheme.primary,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final order = filtered[index];
+                      return OrderCard(
+                        order: order,
+                        onTap: () =>
+                            Get.toNamed('/orders/detail', arguments: order),
+                      );
+                    },
+                  ),
+                );
+              },
+            );
+          }),
+        ),
       ],
     );
   }
 
-  Widget _buildActiveFilterBar() {
+  Widget _desktopTable(BuildContext context, List<OrderModel> orders) {
+    final theme = Theme.of(context);
+    return AppTable(
+      minWidth: 960,
+      columns: const [
+        DataColumn2(label: Text('Order'), size: ColumnSize.M),
+        DataColumn2(label: Text('Placed')),
+        DataColumn2(label: Text('Customer'), size: ColumnSize.L),
+        DataColumn2(label: Text('Items'), numeric: true),
+        DataColumn2(label: Text('Payment')),
+        DataColumn2(label: Text('Total'), numeric: true),
+        DataColumn2(label: Text('Status')),
+      ],
+      rows: orders
+          .map(
+            (order) => DataRow(
+              onSelectChanged: (_) =>
+                  Get.toNamed('/orders/detail', arguments: order),
+              cells: [
+                DataCell(
+                  Text(
+                    '#${order.orderId ?? order.id}',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                DataCell(Text(_formatDateTime(order.orderDate))),
+                DataCell(
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        order.userPhone,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                DataCell(Text('${order.items.length}')),
+                DataCell(Text(order.paymentMethod)),
+                DataCell(
+                  Text(
+                    Money.rs(order.total),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                DataCell(_statusChip(context, order.status)),
+              ],
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _statusChip(BuildContext context, String status) {
+    final color = switch (status.toLowerCase()) {
+      'pending' => AppColors.warning,
+      'cancelled' || 'rejected' => Theme.of(context).colorScheme.error,
+      'delivered' => AppColors.ok,
+      'accepted' || 'confirmed' || 'packed' => AppColors.info,
+      _ => Theme.of(context).colorScheme.primary,
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        status,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime date) =>
+      '${date.day} ${_month(date.month)} ${date.year} · ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+  String _month(int month) => const [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ][month - 1];
+
+  Widget _buildActiveFilterBar(BuildContext context) {
+    final theme = Theme.of(context);
     final chips = <Widget>[];
 
     if (_searchQuery.isNotEmpty) {
@@ -365,8 +463,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
     }
 
     return Container(
-      color: Colors.white,
-      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
       child: Row(
         children: [
           Expanded(
@@ -380,10 +482,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
             style: TextButton.styleFrom(padding: EdgeInsets.zero),
             child: Text(
               'Clear all',
-              style: GoogleFonts.interTight(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w600,
-                color: kRedColor,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: theme.colorScheme.error,
               ),
             ),
           ),
@@ -397,37 +497,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
     required VoidCallback onRemove,
     IconData? icon,
   }) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.only(right: 8.w),
+      padding: const EdgeInsets.only(right: 8),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: kPrimaryColor.withAlpha(18),
-          borderRadius: BorderRadius.circular(20.r),
-          border: Border.all(color: kPrimaryColor.withAlpha(60)),
+          color: theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 12.sp, color: kPrimaryColor),
-              SizedBox(width: 4.w),
+              Icon(icon, size: 12, color: theme.colorScheme.primary),
+              const SizedBox(width: 4),
             ],
             Text(
               label,
-              style: GoogleFonts.interTight(
-                fontSize: 11.sp,
+              style: theme.textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: kPrimaryColor,
+                color: theme.colorScheme.onPrimaryContainer,
               ),
             ),
-            SizedBox(width: 4.w),
+            const SizedBox(width: 4),
             InkWell(
               onTap: onRemove,
               child: Icon(
-                Icons.close_rounded,
-                size: 13.sp,
-                color: kPrimaryColor,
+                PhosphorIconsRegular.x,
+                size: 13,
+                color: theme.colorScheme.onPrimaryContainer,
               ),
             ),
           ],
@@ -442,6 +541,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 /// Bottom sheet housing date range, sort, and payment-method filters
 /// as a single professional filtration surface.
 class _FilterSheet extends StatefulWidget {
+  final bool asDialog;
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final OrderSort initialSort;
@@ -455,6 +555,7 @@ class _FilterSheet extends StatefulWidget {
   onApply;
 
   const _FilterSheet({
+    required this.asDialog,
     required this.initialStartDate,
     required this.initialEndDate,
     required this.initialSort,
@@ -487,18 +588,6 @@ class _FilterSheetState extends State<_FilterSheet> {
       initialDate: (isStart ? _start : _end) ?? DateTime.now(),
       firstDate: isStart ? DateTime(2000) : (_start ?? DateTime(2000)),
       lastDate: DateTime(2070),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            primaryColor: kPrimaryColor,
-            colorScheme: const ColorScheme.light(primary: kPrimaryColor),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(foregroundColor: kPrimaryColor),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked == null) return;
     setState(() {
@@ -513,39 +602,40 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+        bottom: widget.asDialog ? 0 : MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22.r)),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(widget.asDialog ? 20 : 22),
         ),
-        padding: EdgeInsets.fromLTRB(20.w, 12.h, 20.w, 20.h),
+        padding: EdgeInsets.fromLTRB(20, widget.asDialog ? 20 : 12, 20, 20),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Center(
-                child: Container(
-                  width: 40.w,
-                  height: 4.h,
-                  margin: EdgeInsets.only(bottom: 16.h),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4.r),
+              if (!widget.asDialog)
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
                 ),
-              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Filter & Sort',
-                    style: GoogleFonts.interTight(
-                      fontSize: 17.sp,
+                    style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -560,19 +650,17 @@ class _FilterSheetState extends State<_FilterSheet> {
                     },
                     child: Text(
                       'Reset',
-                      style: GoogleFonts.interTight(
-                        fontSize: 12.5.sp,
-                        fontWeight: FontWeight.w600,
-                        color: kRedColor,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.error,
                       ),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: 18.h),
+              SizedBox(height: widget.asDialog ? 12 : 18),
 
               _sectionLabel('Date range'),
-              SizedBox(height: 8.h),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
@@ -583,7 +671,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                       onTap: () => _pickDate(isStart: true),
                     ),
                   ),
-                  SizedBox(width: 10.w),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: _dateField(
                       label: _end == null ? 'End date' : _formatDate(_end!),
@@ -593,35 +681,36 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ],
               ),
 
-              SizedBox(height: 22.h),
+              const SizedBox(height: 22),
               _sectionLabel('Sort by'),
-              SizedBox(height: 8.h),
+              const SizedBox(height: 8),
               Wrap(
-                spacing: 8.w,
-                runSpacing: 8.h,
+                spacing: 8,
+                runSpacing: 8,
                 children: OrderSort.values.map((sort) {
                   final selected = _sort == sort;
                   return ChoiceChip(
                     label: Text(sort.label),
-                    labelStyle: GoogleFonts.interTight(
-                      fontSize: 11.5.sp,
+                    labelStyle: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : Colors.grey.shade700,
+                      color: selected
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface,
                     ),
                     selected: selected,
                     onSelected: (_) => setState(() => _sort = sort),
-                    selectedColor: kPrimaryColor,
-                    backgroundColor: Colors.grey.shade100,
+                    selectedColor: theme.colorScheme.primary,
+                    backgroundColor: theme.colorScheme.surfaceContainerLow,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.r),
-                      side: BorderSide.none,
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: theme.dividerColor),
                     ),
                     showCheckmark: false,
                   );
                 }).toList(),
               ),
 
-              SizedBox(height: 22.h),
+              const SizedBox(height: 22),
 
               SizedBox(
                 width: double.infinity,
@@ -632,8 +721,8 @@ class _FilterSheetState extends State<_FilterSheet> {
                         'Incomplete range',
                         'Please select both a start and end date, or clear both.',
                         snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: kRedColor,
-                        colorText: Colors.white,
+                        backgroundColor: theme.colorScheme.error,
+                        colorText: theme.colorScheme.onError,
                       );
                       return;
                     }
@@ -641,18 +730,18 @@ class _FilterSheetState extends State<_FilterSheet> {
                     Navigator.of(context).pop();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: kPrimaryColor,
-                    padding: EdgeInsets.symmetric(vertical: 14.h),
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Text(
                     'Apply filters',
-                    style: GoogleFonts.interTight(
-                      color: Colors.white,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.onPrimary,
                       fontWeight: FontWeight.w700,
-                      fontSize: 14.sp,
                     ),
                   ),
                 ),
@@ -666,37 +755,29 @@ class _FilterSheetState extends State<_FilterSheet> {
 
   Widget _sectionLabel(String text) => Text(
     text,
-    style: GoogleFonts.interTight(
-      fontSize: 12.5.sp,
-      fontWeight: FontWeight.w700,
-      color: Colors.grey.shade800,
-    ),
+    style: Theme.of(
+      context,
+    ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
   );
 
   Widget _dateField({required String label, required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10.r),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(10.r),
+          border: Border.all(color: Theme.of(context).dividerColor),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: GoogleFonts.interTight(
-                fontSize: 12.sp,
-                color: Colors.black87,
-              ),
-            ),
+            Text(label, style: Theme.of(context).textTheme.bodyMedium),
             Icon(
-              Icons.calendar_today_rounded,
-              size: 15.sp,
-              color: Colors.grey.shade500,
+              PhosphorIconsRegular.calendarBlank,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ],
         ),
