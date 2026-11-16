@@ -15,6 +15,7 @@ import '../screens/products/product_management_screen.dart';
 import '../screens/offers/offers_screen.dart';
 import '../screens/riders/riders_screen.dart';
 import '../screens/orders/order_detail_screen.dart';
+import '../screens/expenses/expenses_screen.dart';
 import 'admin_route_guard.dart';
 import 'auth_gate.dart';
 import '../widgets/app_shell.dart';
@@ -28,6 +29,7 @@ import '../bindings/item_profit_binding.dart';
 import '../bindings/inventory_binding.dart';
 import '../bindings/reports_binding.dart';
 import '../bindings/billing_binding.dart';
+import '../bindings/expense_binding.dart';
 import '../models/order_model.dart';
 
 abstract final class AppRoutes {
@@ -79,6 +81,7 @@ abstract final class AppRoutes {
     _protected('/bill-history', SalesScreen()),
     _protected('/offers', const OffersScreen(), binding: OffersBinding()),
     _protected('/riders', const RidersScreen(), binding: RidersBinding()),
+    _protected('/expenses', const ExpensesScreen(), binding: ExpenseBinding()),
     _protected(
       '/item-profit',
       const ItemProfitScreen(),

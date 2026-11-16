@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -12,289 +10,275 @@ import '../../utils/money.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_table.dart';
-import '../../widgets/confirm_tap_button.dart';
+import '../../widgets/app_loader.dart';
+import '../../widgets/common_dialog.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/kpi_card.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/primary_textfield.dart';
 import '../../widgets/retry_widget.dart';
-import '../../widgets/segmented_tabs.dart';
-import '../../widgets/shimmer_skeletons.dart';
 import '../../widgets/side_drawer.dart';
 import '../../widgets/status_chip.dart';
 
 class ExpensesScreen extends GetView<ExpenseController> {
   const ExpensesScreen({super.key});
 
-  static const _subtitle = 'Everything you spend to run the shop, so profit is real.';
+  static const _subtitle =
+      'Everything you spend to run the shop, so profit is real.';
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) => Obx(() {
-      if (controller.loading.value) return _skeleton();
-      if (controller.error.value != null && controller.expenses.isEmpty) {
-        return ErrorRetryWidget(
-          errorMessage: controller.error.value!,
-          onRetry: controller.reload,
-        );
-      }
       final wide = constraints.maxWidth >= 1000;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PageHeader(
-            title: 'Expenses',
-            subtitle: _subtitle,
-            actions: [
-              AppButton(
-                label: 'Add expense',
-                icon: const Icon(PhosphorIconsRegular.plus),
-                onPressed: () => _openEditor(context),
-              ),
-            ],
-          ),
-          _kpis(constraints.maxWidth),
-          const SizedBox(height: 16),
-          _filters(),
-          const SizedBox(height: 12),
-          Expanded(
-            child: wide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: _tableCard(context)),
-                      const SizedBox(width: 16),
-                      SizedBox(
-                        width: 360,
-                        child: SingleChildScrollView(child: _budgetCard(context)),
+      final tableWidth = wide
+          ? constraints.maxWidth - 376
+          : constraints.maxWidth;
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PageHeader(
+              title: 'Expenses',
+              subtitle: _subtitle,
+              bottomSpacing: 18,
+              titleFontSize: 30,
+              actions: [
+                AppButton(
+                  label: 'Add expense',
+                  icon: const Icon(PhosphorIconsRegular.plus),
+                  onPressed: () => _openEditor(context),
+                ),
+              ],
+            ),
+            if (controller.loading.value && controller.expenses.isNotEmpty)
+              const LinearProgressIndicator(minHeight: 2),
+            if (controller.error.value != null &&
+                controller.expenses.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Could not refresh expenses: ${controller.error.value}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
-                    ],
-                  )
-                : ListView(
-                    children: [
-                      SizedBox(height: 560, child: _tableCard(context)),
-                      const SizedBox(height: 16),
-                      _budgetCard(context),
-                    ],
-                  ),
-          ),
-        ],
+                    ),
+                    TextButton(
+                      onPressed: controller.reload,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            if (controller.error.value != null && controller.expenses.isEmpty)
+              SizedBox(
+                height: 360,
+                child: ErrorRetryWidget(
+                  errorMessage: controller.error.value!,
+                  onRetry: controller.reload,
+                ),
+              )
+            else if (wide)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: tableWidth, child: _tableSection(context)),
+                  const SizedBox(width: 16),
+                  SizedBox(width: 360, child: _budgetCard(context)),
+                ],
+              )
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _tableSection(context),
+                  const SizedBox(height: 16),
+                  _budgetCard(context),
+                ],
+              ),
+          ],
+        ),
       );
     }),
   );
 
-  // ------------------------------------------------------------------ pieces
-
-  Widget _skeleton() => const Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _tableSection(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      PageHeader(title: 'Expenses', subtitle: _subtitle),
-      ShimmerKpiRow(),
-      SizedBox(height: 16),
-      Expanded(child: SingleChildScrollView(child: ShimmerTable())),
+      if (controller.loading.value && controller.expenses.isEmpty)
+        const SizedBox(
+          height: 320,
+          child: AppLoader(label: 'Loading expenses...'),
+        )
+      else
+        _tableCard(context),
+      if (controller.loadMoreError.value != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            'Could not load more expenses: ${controller.loadMoreError.value}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+        ),
+      if (controller.canLoadMore.value || controller.loadingMore.value)
+        Align(
+          alignment: Alignment.center,
+          child: TextButton.icon(
+            onPressed: controller.loadingMore.value
+                ? null
+                : controller.loadMore,
+            icon: controller.loadingMore.value
+                ? const SizedBox.square(
+                    dimension: 15,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(PhosphorIconsRegular.arrowDown, size: 17),
+            label: Text(
+              controller.loadingMore.value
+                  ? 'Loading expenses...'
+                  : 'Load more expenses',
+            ),
+          ),
+        ),
     ],
   );
 
-  Widget _kpis(double width) {
-    final cols = width > 1000
-        ? 4
-        : width > 620
-        ? 2
-        : 1;
-    final top = controller.topCategory;
-    return GridView.count(
-      crossAxisCount: cols,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: cols == 1 ? 3.2 : 2.2,
-      children: [
-        KpiCard(
-          label: 'Spent this month',
-          value: Money.rs(controller.monthTotal),
-          caption: '${controller.monthExpenses.length} entries',
-          icon: PhosphorIconsRegular.wallet,
-        ),
-        KpiCard(
-          label: 'Spent today',
-          value: Money.rs(controller.todayTotal),
-          icon: PhosphorIconsRegular.calendarBlank,
-        ),
-        KpiCard(
-          label: 'Biggest cost',
-          value: top == null ? '—' : Money.rs(top.value),
-          caption: top?.key,
-          icon: PhosphorIconsRegular.chartPieSlice,
-        ),
-        KpiCard(
-          label: 'Daily average',
-          value: Money.rs(controller.dailyAverage),
-          caption: 'This month so far',
-          icon: PhosphorIconsRegular.trendUp,
-        ),
-      ],
-    );
-  }
-
-  Widget _filters() {
-    final tabs = ['All', ...controller.categories];
-    final selected = controller.category.value.isEmpty
-        ? 0
-        : math.max(0, tabs.indexOf(controller.category.value));
-    return Wrap(
-      spacing: 12,
-      runSpacing: 10,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        SizedBox(
-          width: 280,
-          child: TextField(
-            onChanged: (value) => controller.search.value = value,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(PhosphorIconsRegular.magnifyingGlass),
-              hintText: 'Search note, category, payment',
-              isDense: true,
-            ),
-          ),
-        ),
-        SegmentedTabs(
-          tabs: tabs,
-          selectedIndex: selected,
-          onChanged: (index) =>
-              controller.category.value = index == 0 ? '' : tabs[index],
-        ),
-      ],
-    );
-  }
-
   Widget _tableCard(BuildContext context) {
-    final theme = Theme.of(context);
     final rows = controller.filtered;
-    final dateFormat = DateFormat('d MMM yyyy');
+    const headingHeight = 46.0;
+    const rowHeight = 64.0;
+    final tableHeight = rows.isEmpty
+        ? 300.0
+        : headingHeight + rowHeight * rows.length;
     return AppCard(
       padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'All expenses',
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      Text(
-                        '${rows.length} shown',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      child: SizedBox(
+        height: tableHeight,
+        child: AppTable(
+          minWidth: 780,
+          headingRowHeight: headingHeight,
+          dataRowHeight: rowHeight,
+          horizontalMargin: 16,
+          columnSpacing: 12,
+          emptyState: EmptyState(
+            title: 'No expenses yet',
+            message: 'Add an expense to keep your costs up to date.',
+            icon: PhosphorIconsRegular.wallet,
+            actionLabel: 'Add expense',
+            onAction: () => _openEditor(context),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: AppTable(
-              minWidth: 860,
-              emptyState: EmptyState(
-                title: 'No expenses found',
-                message: 'Add an expense, or clear the filters.',
-                icon: PhosphorIconsRegular.wallet,
-                actionLabel: 'Add expense',
-                onAction: () => _openEditor(context),
-              ),
-              columns: const [
-                DataColumn2(label: Text('Date'), size: ColumnSize.S),
-                DataColumn2(label: Text('Category'), size: ColumnSize.M),
-                DataColumn2(label: Text('Note'), size: ColumnSize.L),
-                DataColumn2(label: Text('Paid by'), size: ColumnSize.S),
-                DataColumn2(label: Text('Amount'), numeric: true),
-                DataColumn2(label: Text('Actions'), fixedWidth: 190),
-              ],
-              rows: [
-                for (final e in rows)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(dateFormat.format(e.createdAt))),
-                      DataCell(
-                        StatusChip(
-                          label: e.category,
-                          tone: e.category == 'Salaries'
-                              ? StatusTone.info
-                              : StatusTone.primary,
+          columns: const [
+            DataColumn2(label: Text('Date'), fixedWidth: 70),
+            DataColumn2(label: Text('Category'), fixedWidth: 150),
+            DataColumn2(label: Text('Note'), size: ColumnSize.L),
+            DataColumn2(label: Text('Paid by'), fixedWidth: 100),
+            DataColumn2(label: Text('Amount'), numeric: true, fixedWidth: 160),
+          ],
+          rows: [
+            for (final e in rows)
+              DataRow(
+                cells: [
+                  DataCell(
+                    Text(
+                      DateFormat('d MMM').format(e.createdAt),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  DataCell(
+                    StatusChip(
+                      label: e.category,
+                      tone: e.category == 'Salaries'
+                          ? StatusTone.info
+                          : StatusTone.primary,
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      e.note.isEmpty ? '—' : e.note,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  DataCell(Text(e.paidBy)),
+                  DataCell(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            Money.rs(e.amount),
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
+                          ),
                         ),
-                      ),
-                      DataCell(
-                        Text(
-                          e.note.isEmpty ? '—' : e.note,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      DataCell(Text(e.paidBy)),
-                      DataCell(
-                        Text(
-                          Money.rs(e.amount),
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Edit expense',
-                              onPressed: () => _openEditor(context, e),
-                              icon: const Icon(PhosphorIconsRegular.pencilSimple),
+                        PopupMenuButton<String>(
+                          tooltip: 'Expense actions',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          icon: const Icon(
+                            PhosphorIconsRegular.dotsThree,
+                            size: 19,
+                          ),
+                          onSelected: (action) =>
+                              _handleExpenseAction(context, action, e),
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit expense'),
                             ),
-                            const SizedBox(width: 4),
-                            ConfirmTapButton(
-                              label: 'Delete',
-                              confirmLabel: 'Delete',
-                              confirmTitle: 'Delete expense?',
-                              confirmMessage:
-                                  'This expense will be removed and profit reports will change.',
-                              onConfirmed: () async {
-                                try {
-                                  await controller.delete(e);
-                                } catch (exception) {
-                                  Get.snackbar(
-                                    'Could not delete expense',
-                                    exception.toString(),
-                                  );
-                                }
-                              },
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete expense'),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-              ],
-            ),
-          ),
-          if (controller.canLoadMore.value)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: TextButton(
-                onPressed: controller.loadingMore.value ? null : controller.loadMore,
-                child: Text(
-                  controller.loadingMore.value ? 'Loading…' : 'Load more expenses',
-                ),
+                ],
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Future<void> _handleExpenseAction(
+    BuildContext context,
+    String action,
+    ExpenseRecord expense,
+  ) async {
+    if (action == 'edit') {
+      await _openEditor(context, expense);
+      return;
+    }
+    final confirmed = await CommonDialog.confirm(
+      context: context,
+      title: 'Delete expense?',
+      message: 'This expense will be removed and profit reports will change.',
+      icon: PhosphorIconsRegular.trash,
+      iconColor: Theme.of(context).colorScheme.error,
+      positiveButtonText: 'Delete',
+    );
+    if (confirmed != true) return;
+    try {
+      await controller.delete(expense);
+    } catch (exception) {
+      Get.snackbar('Could not delete expense', exception.toString());
+    }
   }
 
   Widget _budgetCard(BuildContext context) {
@@ -317,11 +301,12 @@ class ExpensesScreen extends GetView<ExpenseController> {
                   children: [
                     Text(
                       'Monthly budget',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     Text(
-                      'Spent this month vs usual spend',
+                      'Usual spend per month',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -348,10 +333,13 @@ class ExpensesScreen extends GetView<ExpenseController> {
           Row(
             children: [
               const Expanded(
-                child: Text('Total', style: TextStyle(fontWeight: FontWeight.w800)),
+                child: Text(
+                  'Total',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
               ),
               Text(
-                '${Money.rs(controller.monthTotal)} / ${Money.rs(controller.budgetTotal)}',
+                Money.rs(controller.budgetTotal),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ],
@@ -384,14 +372,16 @@ class ExpensesScreen extends GetView<ExpenseController> {
               Expanded(
                 child: Text(
                   category,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               Text(
-                '${Money.rs(spent)} / ${Money.rs(budget)}',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                Money.rs(budget),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -412,17 +402,20 @@ class ExpensesScreen extends GetView<ExpenseController> {
 
   // ----------------------------------------------------------------- drawers
 
-  String _plain(double value) =>
-      value == value.roundToDouble() ? value.toInt().toString() : value.toString();
+  String _plain(double value) => value == value.roundToDouble()
+      ? value.toInt().toString()
+      : value.toString();
 
-  Future<void> _openEditor(BuildContext context, [ExpenseRecord? existing]) async {
+  Future<void> _openEditor(
+    BuildContext context, [
+    ExpenseRecord? existing,
+  ]) async {
     final note = TextEditingController(text: existing?.note ?? '');
     final amount = TextEditingController(
       text: existing == null ? '' : _plain(existing.amount),
     );
     final category = (existing?.category ?? kExpenseCategories.first).obs;
     final method = (existing?.paidBy ?? kPaymentMethods.first).obs;
-    final date = (existing?.createdAt ?? DateTime.now()).obs;
     final error = RxnString();
     final saving = false.obs;
     final categoryOptions = <String>{
@@ -435,7 +428,8 @@ class ExpensesScreen extends GetView<ExpenseController> {
     }.toList();
 
     Future<void> save() async {
-      final value = double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
+      final value =
+          double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
       if (value <= 0) {
         error.value = 'Enter an amount greater than zero.';
         return;
@@ -443,8 +437,6 @@ class ExpensesScreen extends GetView<ExpenseController> {
       saving.value = true;
       error.value = null;
       try {
-        final picked = date.value;
-        final base = existing?.createdAt ?? DateTime.now();
         await controller.save(
           ExpenseRecord(
             id: existing?.id,
@@ -452,13 +444,7 @@ class ExpensesScreen extends GetView<ExpenseController> {
             note: note.text.trim(),
             amount: value,
             paidBy: method.value,
-            createdAt: DateTime(
-              picked.year,
-              picked.month,
-              picked.day,
-              base.hour,
-              base.minute,
-            ),
+            createdAt: existing?.createdAt ?? DateTime.now(),
           ),
         );
         if (context.mounted) Navigator.of(context).pop();
@@ -471,8 +457,7 @@ class ExpensesScreen extends GetView<ExpenseController> {
 
     final drawer = SideDrawer(
       title: existing == null ? 'Add expense' : 'Edit expense',
-      subtitle: 'Expenses are subtracted from profit in reports.',
-      width: 520,
+      width: 680,
       body: Obx(
         () => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,7 +490,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
                     headerText: 'Amount (Rs)',
                     hintText: '0',
                     required: true,
-                    fieldType: const TextInputType.numberWithOptions(decimal: true),
+                    fieldType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -525,23 +512,6 @@ class ExpensesScreen extends GetView<ExpenseController> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text('Date', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final now = DateTime.now();
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: date.value,
-                  firstDate: DateTime(now.year - 3),
-                  lastDate: now.add(const Duration(days: 1)),
-                );
-                if (picked != null) date.value = picked;
-              },
-              icon: const Icon(PhosphorIconsRegular.calendarBlank, size: 18),
-              label: Text(DateFormat('EEE, d MMM yyyy').format(date.value)),
-            ),
             if (error.value != null) ...[
               const SizedBox(height: 12),
               Text(
@@ -559,7 +529,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
             AppButton(
               label: 'Cancel',
               style: AppButtonStyle.ghost,
-              onPressed: saving.value ? null : () => Navigator.of(context).pop(),
+              onPressed: saving.value
+                  ? null
+                  : () => Navigator.of(context).pop(),
             ),
             const SizedBox(width: 8),
             AppButton(
@@ -577,7 +549,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
   }
 
   Future<void> _openBudgets(BuildContext context) async {
-    final categories = {...kExpenseCategories, ...controller.budgets.keys}.toList();
+    final categories = {
+      ...kExpenseCategories,
+      ...controller.budgets.keys,
+    }.toList();
     final fields = {
       for (final c in categories)
         c: TextEditingController(text: _plain(controller.budgets[c] ?? 0)),
@@ -624,7 +599,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
             AppButton(
               label: 'Cancel',
               style: AppButtonStyle.ghost,
-              onPressed: saving.value ? null : () => Navigator.of(context).pop(),
+              onPressed: saving.value
+                  ? null
+                  : () => Navigator.of(context).pop(),
             ),
             const SizedBox(width: 8),
             AppButton(

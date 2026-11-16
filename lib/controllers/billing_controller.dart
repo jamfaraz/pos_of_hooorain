@@ -166,6 +166,7 @@ class BillingController extends GetxController {
   List<ProductRecord> get filteredProducts {
     final query = searchQuery.value.trim().toLowerCase();
     return products.where((product) {
+      final matchesStock = product.inStock;
       final matchesCategory =
           selectedCategory.value == 'All' ||
           product.category.trim() == selectedCategory.value;
@@ -173,7 +174,7 @@ class BillingController extends GetxController {
           query.isEmpty ||
           product.name.toLowerCase().contains(query) ||
           product.sku.toLowerCase().contains(query);
-      return matchesCategory && matchesQuery;
+      return matchesStock && matchesCategory && matchesQuery;
     }).toList();
   }
 

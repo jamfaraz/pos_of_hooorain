@@ -46,10 +46,12 @@ extension on OrderSort {
 class OrdersScreen extends StatefulWidget {
   final String orderStatus;
   final bool showHeader;
+  final Widget? topContent;
   const OrdersScreen({
     super.key,
     required this.orderStatus,
     this.showHeader = true,
+    this.topContent,
   });
 
   @override
@@ -190,118 +192,129 @@ class _OrdersScreenState extends State<OrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (widget.showHeader)
-          PageHeader(
-            title: 'Online orders',
-            subtitle: 'Review customer orders and keep each delivery moving.',
-            actions: [
-              OutlinedButton.icon(
-                onPressed: () =>
-                    controller.fetchOrders(orderStatus: widget.orderStatus),
-                icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 18),
-                label: const Text('Refresh'),
-              ),
-            ],
-          ),
-        Row(
+    return RefreshIndicator(
+      color: theme.colorScheme.primary,
+      onRefresh: () => controller.fetchOrders(orderStatus: widget.orderStatus),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: SizedBox(
-                height: 44,
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    prefixIcon: Icon(PhosphorIconsRegular.magnifyingGlass),
-                    hintText: 'Search order, customer or phone',
+            if (widget.topContent != null) widget.topContent!,
+            if (widget.showHeader)
+              PageHeader(
+                title: 'Online orders',
+                subtitle:
+                    'Review customer orders and keep each delivery moving.',
+                actions: [
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        controller.fetchOrders(orderStatus: widget.orderStatus),
+                    icon: const Icon(
+                      PhosphorIconsRegular.arrowClockwise,
+                      size: 18,
+                    ),
+                    label: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        prefixIcon: Icon(PhosphorIconsRegular.magnifyingGlass),
+                        hintText: 'Search order, customer or phone',
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _openFilterSheet,
+                  icon: const Icon(PhosphorIconsRegular.funnel, size: 18),
+                  label: Text(
+                    _activeFilterCount == 0
+                        ? 'Filter'
+                        : 'Filter $_activeFilterCount',
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Refresh orders',
+                  onPressed: () =>
+                      controller.fetchOrders(orderStatus: widget.orderStatus),
+                  icon: const Icon(
+                    PhosphorIconsRegular.arrowClockwise,
+                    size: 19,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _openFilterSheet,
-              icon: const Icon(PhosphorIconsRegular.funnel, size: 18),
-              label: Text(
-                _activeFilterCount == 0
-                    ? 'Filter'
-                    : 'Filter $_activeFilterCount',
-              ),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: 'Refresh orders',
-              onPressed: () =>
-                  controller.fetchOrders(orderStatus: widget.orderStatus),
-              icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 19),
-            ),
+            if (_activeFilterCount > 0 || _searchQuery.isNotEmpty)
+              _buildActiveFilterBar(context),
+            const SizedBox(height: 8),
+            Obx(() {
+              if (controller.hasError.value) {
+                return ErrorRetryWidget(
+                  onRetry: () =>
+                      controller.fetchOrders(orderStatus: widget.orderStatus),
+                  errorMessage: controller.errorMessage.value,
+                );
+              }
+              if (controller.isLoading.value) {
+                return const AppLoader(label: 'Loading orders...');
+              }
+              final filtered = _applyClientFilters(controller.orders);
+              if (filtered.isEmpty) {
+                return EmptyState(
+                  title: controller.orders.isEmpty
+                      ? 'No ${widget.orderStatus.toLowerCase()} orders'
+                      : 'No matching orders',
+                  message: controller.orders.isEmpty
+                      ? 'New customer orders will appear here.'
+                      : 'Try changing your search or filters.',
+                  actionLabel: controller.orders.isEmpty
+                      ? 'Refresh orders'
+                      : 'Clear filters',
+                  onAction: controller.orders.isEmpty
+                      ? () => controller.fetchOrders(
+                          orderStatus: widget.orderStatus,
+                        )
+                      : _clearAllFilters,
+                );
+              }
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth >= 800) {
+                    return SizedBox(
+                      height: 48.0 + 58.0 * filtered.length,
+                      child: _desktopTable(context, filtered),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final order in filtered)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+                          child: OrderCard(
+                            order: order,
+                            onTap: () =>
+                                Get.toNamed('/orders/detail', arguments: order),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              );
+            }),
           ],
         ),
-        if (_activeFilterCount > 0 || _searchQuery.isNotEmpty)
-          _buildActiveFilterBar(context),
-        const SizedBox(height: 8),
-        Expanded(
-          child: Obx(() {
-            if (controller.hasError.value) {
-              return ErrorRetryWidget(
-                onRetry: () =>
-                    controller.fetchOrders(orderStatus: widget.orderStatus),
-                errorMessage: controller.errorMessage.value,
-              );
-            }
-            if (controller.isLoading.value) {
-              return const AppLoader(label: 'Loading orders...');
-            }
-            final filtered = _applyClientFilters(controller.orders);
-            if (filtered.isEmpty) {
-              return EmptyState(
-                title: controller.orders.isEmpty
-                    ? 'No ${widget.orderStatus.toLowerCase()} orders'
-                    : 'No matching orders',
-                message: controller.orders.isEmpty
-                    ? 'New customer orders will appear here.'
-                    : 'Try changing your search or filters.',
-                actionLabel: controller.orders.isEmpty
-                    ? 'Refresh orders'
-                    : 'Clear filters',
-                onAction: controller.orders.isEmpty
-                    ? () => controller.fetchOrders(
-                        orderStatus: widget.orderStatus,
-                      )
-                    : _clearAllFilters,
-              );
-            }
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth >= 800) {
-                  return _desktopTable(context, filtered);
-                }
-                return RefreshIndicator(
-                  onRefresh: () =>
-                      controller.fetchOrders(orderStatus: widget.orderStatus),
-                  color: theme.colorScheme.primary,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final order = filtered[index];
-                      return OrderCard(
-                        order: order,
-                        onTap: () =>
-                            Get.toNamed('/orders/detail', arguments: order),
-                      );
-                    },
-                  ),
-                );
-              },
-            );
-          }),
-        ),
-      ],
+      ),
     );
   }
 

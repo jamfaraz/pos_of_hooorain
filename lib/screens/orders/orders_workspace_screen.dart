@@ -37,59 +37,60 @@ class _OrdersWorkspaceScreenState extends State<OrdersWorkspaceScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Online orders',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
-              ),
-            ),
-          ),
-        ),
-        TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          tabs: _statuses
-              .map(
-                (status) => Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (status == 'Pending')
-                        const Icon(PhosphorIconsRegular.clock, size: 16),
-                      if (status == 'Accepted')
-                        const Icon(PhosphorIconsRegular.package, size: 16),
-                      if (status == 'Delivered')
-                        const Icon(PhosphorIconsRegular.checkCircle, size: 16),
-                      if (status == 'Cancelled')
-                        const Icon(PhosphorIconsRegular.xCircle, size: 16),
-                      const SizedBox(width: 8),
-                      Text(status),
-                    ],
+    return KeyedSubtree(
+      key: ValueKey(_statuses[_tabs.index]),
+      child: OrdersScreen(
+        orderStatus: _statuses[_tabs.index],
+        showHeader: false,
+        topContent: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Online orders',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.4,
                   ),
                 ),
-              )
-              .toList(),
-          dividerColor: theme.dividerColor,
-          indicatorSize: TabBarIndicatorSize.label,
-        ),
-        Expanded(
-          child: KeyedSubtree(
-            key: ValueKey(_statuses[_tabs.index]),
-            child: OrdersScreen(
-              orderStatus: _statuses[_tabs.index],
-              showHeader: false,
+              ),
             ),
-          ),
+            TabBar(
+              controller: _tabs,
+              isScrollable: true,
+              tabs: _statuses
+                  .map(
+                    (status) => Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (status == 'Pending')
+                            const Icon(PhosphorIconsRegular.clock, size: 16),
+                          if (status == 'Accepted')
+                            const Icon(PhosphorIconsRegular.package, size: 16),
+                          if (status == 'Delivered')
+                            const Icon(
+                              PhosphorIconsRegular.checkCircle,
+                              size: 16,
+                            ),
+                          if (status == 'Cancelled')
+                            const Icon(PhosphorIconsRegular.xCircle, size: 16),
+                          const SizedBox(width: 8),
+                          Text(status),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              dividerColor: theme.dividerColor,
+              indicatorSize: TabBarIndicatorSize.label,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

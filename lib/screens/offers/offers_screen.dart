@@ -24,76 +24,69 @@ class OffersScreen extends GetView<OffersController> {
 
   @override
   Widget build(BuildContext context) => Obx(
-    () => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageHeader(
-          title: 'Offers',
-          subtitle: 'Build product offers and preview customer prices.',
-          actions: [
-            AppButton(
-              label: 'Add offer',
-              icon: const Icon(PhosphorIconsRegular.plus),
-              onPressed: () => _editOffer(context),
+    () => SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PageHeader(
+            title: 'Offers',
+            subtitle: 'Build product offers and preview customer prices.',
+            actions: [
+              AppButton(
+                label: 'Add offer',
+                icon: const Icon(PhosphorIconsRegular.plus),
+                onPressed: () => _editOffer(context),
+              ),
+            ],
+          ),
+          if (controller.loading.value)
+            const AppLoader(label: 'Loading offers...')
+          else if (controller.error.value != null && controller.offers.isEmpty)
+            ErrorRetryWidget(
+              errorMessage: controller.error.value!,
+              onRetry: controller.reload,
+            )
+          else if (controller.offers.isEmpty)
+            const EmptyState(
+              title: 'No offers yet',
+              message: 'Create an offer to start promoting products.',
+            )
+          else ...[
+            _preview(context),
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 48.0 + 58.0 * controller.offers.length,
+              child: AppTable(
+                minWidth: 1050,
+                columns: const [
+                  DataColumn2(label: Text('Offer'), size: ColumnSize.L),
+                  DataColumn2(label: Text('Discount')),
+                  DataColumn2(label: Text('Products'), size: ColumnSize.L),
+                  DataColumn2(label: Text('Audience')),
+                  DataColumn2(label: Text('Ends')),
+                  DataColumn2(label: Text('Pinned')),
+                  DataColumn2(label: Text('Live')),
+                  DataColumn2(label: Text('Actions'), size: ColumnSize.M),
+                ],
+                rows: controller.offers
+                    .map((offer) => _offerRow(context, offer))
+                    .toList(),
+              ),
             ),
-          ],
-        ),
-        Expanded(
-          child: controller.loading.value
-              ? const AppLoader(label: 'Loading offers...')
-              : controller.error.value != null && controller.offers.isEmpty
-              ? ErrorRetryWidget(
-                  errorMessage: controller.error.value!,
-                  onRetry: controller.reload,
-                )
-              : controller.offers.isEmpty
-              ? const EmptyState(
-                  title: 'No offers yet',
-                  message: 'Create an offer to start promoting products.',
-                )
-              : SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _preview(context),
-                      const SizedBox(height: 18),
-                      AppTable(
-                        minWidth: 1050,
-                        columns: const [
-                          DataColumn2(label: Text('Offer'), size: ColumnSize.L),
-                          DataColumn2(label: Text('Discount')),
-                          DataColumn2(
-                            label: Text('Products'),
-                            size: ColumnSize.L,
-                          ),
-                          DataColumn2(label: Text('Audience')),
-                          DataColumn2(label: Text('Ends')),
-                          DataColumn2(label: Text('Pinned')),
-                          DataColumn2(label: Text('Live')),
-                          DataColumn2(
-                            label: Text('Actions'),
-                            size: ColumnSize.M,
-                          ),
-                        ],
-                        rows: controller.offers
-                            .map((offer) => _offerRow(context, offer))
-                            .toList(),
-                      ),
-                      if (controller.canLoadMore.value)
-                        TextButton(
-                          onPressed: controller.loadingMore.value
-                              ? null
-                              : controller.loadMore,
-                          child: Text(
-                            controller.loadingMore.value
-                                ? 'Loading…'
-                                : 'Load more offers',
-                          ),
-                        ),
-                    ],
-                  ),
+            if (controller.canLoadMore.value)
+              TextButton(
+                onPressed: controller.loadingMore.value
+                    ? null
+                    : controller.loadMore,
+                child: Text(
+                  controller.loadingMore.value
+                      ? 'Loading…'
+                      : 'Load more offers',
                 ),
-        ),
-      ],
+              ),
+          ],
+        ],
+      ),
     ),
   );
 

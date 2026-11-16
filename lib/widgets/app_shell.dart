@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -20,8 +19,6 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  final _searchController = TextEditingController();
-  final _searchFocusNode = FocusNode();
 
   static const _groups = <_NavGroup>[
     _NavGroup('Overview', [
@@ -122,30 +119,6 @@ class _AppShellState extends State<AppShell> {
     ]),
   ];
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    super.dispose();
-  }
-
-  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (event.logicalKey == LogicalKeyboardKey.slash &&
-        FocusManager.instance.primaryFocus?.context?.widget is! EditableText) {
-      _searchFocusNode.requestFocus();
-      return KeyEventResult.handled;
-    }
-    if (event.logicalKey == LogicalKeyboardKey.escape) {
-      if (Get.isDialogOpen == true) {
-        Get.back();
-        return KeyEventResult.handled;
-      }
-      _scaffoldKey.currentState?.closeDrawer();
-    }
-    return KeyEventResult.ignored;
-  }
-
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await CommonDialog.confirm(
       context: context,
@@ -178,81 +151,74 @@ class _AppShellState extends State<AppShell> {
         final showDrawer = width < 900;
         final railWidth = isDesktop ? 233.0 : 80.0;
 
-        return Focus(
-          onKeyEvent: _handleKey,
-          child: Scaffold(
-            key: _scaffoldKey,
-            backgroundColor: theme.scaffoldBackgroundColor,
-            drawer: showDrawer
-                ? Drawer(
-                    width: 270,
-                    child: SafeArea(
-                      child: _navigationRail(expanded: true, inDrawer: true),
-                    ),
-                  )
-                : null,
-            body: Padding(
-              padding: EdgeInsets.all(showDrawer ? 0 : 16),
-              child: Row(
-                children: [
-                  if (!showDrawer) ...[
-                    Container(
-                      width: railWidth,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(color: theme.dividerColor),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.045),
-                            blurRadius: 18,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: _navigationRail(
-                        expanded: isDesktop,
-                        inDrawer: false,
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                  ],
-                  Expanded(
-                    child: Column(
-                      children: [
-                        _topBar(
-                          context,
-                          showMenu: showDrawer,
-                          surface: theme.scaffoldBackgroundColor,
+        return Scaffold(
+          key: _scaffoldKey,
+          backgroundColor: theme.scaffoldBackgroundColor,
+          drawer: showDrawer
+              ? Drawer(
+                  width: 270,
+                  child: SafeArea(
+                    child: _navigationRail(expanded: true, inDrawer: true),
+                  ),
+                )
+              : null,
+          body: Padding(
+            padding: EdgeInsets.all(showDrawer ? 0 : 16),
+            child: Row(
+              children: [
+                if (!showDrawer) ...[
+                  Container(
+                    width: railWidth,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: theme.dividerColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.045),
+                          blurRadius: 18,
+                          offset: const Offset(0, 5),
                         ),
-                        SizedBox(height: showDrawer ? 8 : 14),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 1680),
-                              child: Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                  showDrawer ? 14 : 4,
-                                  showDrawer ? 12 : 4,
-                                  showDrawer ? 14 : 4,
-                                  showDrawer ? 12 : 4,
-                                ),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                  child: widget.child,
-                                ),
+                      ],
+                    ),
+                    child: _navigationRail(
+                      expanded: isDesktop,
+                      inDrawer: false,
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                ],
+                Expanded(
+                  child: Column(
+                    children: [
+                      _topBar(context, showMenu: showDrawer),
+                      SizedBox(height: showDrawer ? 8 : 14),
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1680),
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                showDrawer ? 14 : 4,
+                                showDrawer ? 12 : 4,
+                                showDrawer ? 14 : 4,
+                                showDrawer ? 12 : 4,
+                              ),
+                              child: SizedBox(
+                                width: double.infinity,
+                                height: double.infinity,
+                                child: widget.child,
                               ),
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -260,86 +226,30 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _topBar(
-    BuildContext context, {
-    required bool showMenu,
-    required Color surface,
-  }) {
+  Widget _topBar(BuildContext context, {required bool showMenu}) {
     final theme = Theme.of(context);
     final themeController = Get.find<ThemeController>();
     return Container(
-      height: 58,
+      height: 64,
       padding: EdgeInsets.symmetric(horizontal: showMenu ? 8 : 0),
       decoration: BoxDecoration(
-        color: surface,
+        color: theme.scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
           if (showMenu) ...[
-            IconButton(
+            _headerIconButton(
+              context,
               tooltip: 'Open navigation',
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               icon: const Icon(PhosphorIconsRegular.list),
             ),
             const SizedBox(width: 6),
           ],
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 450),
-                child: SizedBox(
-                  height: 44,
-                  child: TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    textInputAction: TextInputAction.search,
-                    onSubmitted: (query) {
-                      if (query.trim().isNotEmpty) {
-                        Get.toNamed(
-                          '/products',
-                          parameters: {'q': query.trim()},
-                        );
-                      }
-                    },
-                    decoration: InputDecoration(
-                      hintText: showMenu
-                          ? 'Search products, bills...'
-                          : 'Search products, bills, customers',
-                      prefixIcon: const Icon(
-                        PhosphorIconsRegular.magnifyingGlass,
-                        size: 19,
-                      ),
-                      suffixIconConstraints: const BoxConstraints(
-                        minWidth: 42,
-                        minHeight: 40,
-                      ),
-                      suffixIcon: Container(
-                        margin: const EdgeInsets.all(5),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          border: Border.all(color: theme.dividerColor),
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Text(
-                          '/',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
           const Spacer(),
-          IconButton(
+          _headerIconButton(
+            context,
             tooltip: themeController.isDark.value
                 ? 'Switch to light theme'
                 : 'Switch to dark theme',
@@ -352,38 +262,73 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
           ),
-          IconButton(
+          const SizedBox(width: 10),
+          _headerIconButton(
+            context,
             tooltip: 'Notifications',
             onPressed: () => Get.toNamed('/notifications'),
             icon: const Icon(PhosphorIconsRegular.bell),
           ),
-          PopupMenuButton<String>(
-            tooltip: 'Account',
-            onSelected: (action) {
-              if (action == 'logout') _confirmLogout(context);
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(PhosphorIconsRegular.signOut, size: 18),
-                    SizedBox(width: 10),
-                    Text('Log out'),
-                  ],
+          const SizedBox(width: 10),
+          Container(
+            width: 54,
+            height: 52,
+            decoration: _headerIconDecoration(context),
+            child: PopupMenuButton<String>(
+              tooltip: 'Account',
+              onSelected: (action) {
+                if (action == 'logout') _confirmLogout(context);
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(PhosphorIconsRegular.signOut, size: 18),
+                      SizedBox(width: 10),
+                      Text('Log out'),
+                    ],
+                  ),
                 ),
+              ],
+              icon: const Icon(PhosphorIconsRegular.userCircle),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-            ],
-            icon: const Icon(PhosphorIconsRegular.userCircle),
+            ),
           ),
           if (widget.topBarAction != null) ...[
-            const SizedBox(width: 6),
+            const SizedBox(width: 14),
             widget.topBarAction!,
           ],
         ],
       ),
     );
   }
+
+  Widget _headerIconButton(
+    BuildContext context, {
+    required String tooltip,
+    required VoidCallback? onPressed,
+    required Widget icon,
+  }) => Container(
+    width: 54,
+    height: 52,
+    decoration: _headerIconDecoration(context),
+    child: IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: icon,
+      color: Theme.of(context).colorScheme.onSurface,
+      splashRadius: 22,
+    ),
+  );
+
+  BoxDecoration _headerIconDecoration(BuildContext context) => BoxDecoration(
+    color: Theme.of(context).colorScheme.surface,
+    border: Border.all(color: Theme.of(context).dividerColor),
+    borderRadius: BorderRadius.circular(15),
+  );
 
   Widget _navigationRail({required bool expanded, required bool inDrawer}) {
     final theme = Theme.of(context);

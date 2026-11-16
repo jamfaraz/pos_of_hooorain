@@ -10,13 +10,15 @@ class ExpenseController extends GetxController {
   final ExpenseService _service;
 
   final expenses = <ExpenseRecord>[].obs; // paged list for the table
-  final monthExpenses = <ExpenseRecord>[].obs; // this month, for KPIs and budgets
+  final monthExpenses =
+      <ExpenseRecord>[].obs; // this month, for KPIs and budgets
   final budgets = <String, double>{}.obs;
 
   final loading = true.obs;
   final loadingMore = false.obs;
   final canLoadMore = false.obs;
   final error = RxnString();
+  final loadMoreError = RxnString();
 
   final category = ''.obs; // '' means all categories
   final search = ''.obs;
@@ -32,6 +34,7 @@ class ExpenseController extends GetxController {
   Future<void> reload() async {
     loading.value = true;
     error.value = null;
+    loadMoreError.value = null;
     _cursor = null;
     try {
       final now = DateTime.now();
@@ -56,13 +59,14 @@ class ExpenseController extends GetxController {
   Future<void> loadMore() async {
     if (loadingMore.value || !canLoadMore.value) return;
     loadingMore.value = true;
+    loadMoreError.value = null;
     try {
       final page = await _service.fetchPage(after: _cursor);
       expenses.addAll(page.items);
       _cursor = page.cursor;
       canLoadMore.value = page.hasMore;
     } catch (exception) {
-      error.value = exception.toString();
+      loadMoreError.value = exception.toString();
     } finally {
       loadingMore.value = false;
     }

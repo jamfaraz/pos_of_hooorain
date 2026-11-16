@@ -61,6 +61,8 @@ abstract final class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
+      primaryTextTheme: baseTextTheme,
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       textTheme: baseTextTheme,

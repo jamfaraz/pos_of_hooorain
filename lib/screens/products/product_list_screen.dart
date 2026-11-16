@@ -136,57 +136,78 @@ class _ProductListScreenState extends State<ProductListScreen> {
         elevation: 1,
         leading: BackNavigatingButton(color: kblack),
       ),
-      body: Column(
-        children: [
-          Obx(() {
-            if (fetchProductController.isLoadingSubcategories.value) {
-              return const AppLoader(label: 'Loading subcategories...');
-            }
+      body: LayoutBuilder(
+        builder: (context, constraints) => RefreshIndicator(
+          onRefresh: _loadProducts,
+          color: kGreenColor,
+          backgroundColor: Colors.white,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Obx(() {
+                  if (fetchProductController.isLoadingSubcategories.value) {
+                    return const AppLoader(label: 'Loading subcategories...');
+                  }
 
-            if (fetchProductController.subcategories.isEmpty) {
-              return SizedBox(height: 8.h);
-            }
+                  if (fetchProductController.subcategories.isEmpty) {
+                    return SizedBox(height: 8.h);
+                  }
 
-            return Container(
-              height: 46.h,
-              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: fetchProductController.subcategories.length,
-                itemBuilder: (context, index) {
-                  final subcategory =
-                      fetchProductController.subcategories[index];
-                  final isSelected =
-                      fetchProductController.selectedSubcategory.value ==
-                      subcategory;
+                  return Container(
+                    height: 46.h,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 8.h,
+                    ),
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: fetchProductController.subcategories.length,
+                      itemBuilder: (context, index) {
+                        final subcategory =
+                            fetchProductController.subcategories[index];
+                        final isSelected =
+                            fetchProductController.selectedSubcategory.value ==
+                            subcategory;
 
-                  return ChipWidget(
-                    subcategory: subcategory,
-                    isSelected: isSelected,
-                    onTap: () => _selectSubcategory(subcategory),
+                        return ChipWidget(
+                          subcategory: subcategory,
+                          isSelected: isSelected,
+                          onTap: () => _selectSubcategory(subcategory),
+                        );
+                      },
+                    ),
                   );
-                },
+                }),
               ),
-            );
-          }),
-          // --- Main Content: Products List/Grid ---
-          Expanded(child: _buildBody()),
-          // ----------------------------------------
-        ],
+              ..._buildBody(constraints.maxWidth),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildBody() {
+  List<Widget> _buildBody(double screenWidth) {
     if (isLoading) {
-      return const AppLoader(label: 'Loading products...');
+      return const [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(child: AppLoader(label: 'Loading products...')),
+        ),
+      ];
     }
 
     if (errorMessage != null) {
-      return ErrorRetryWidget(
-        errorMessage: errorMessage!,
-        onRetry: _loadProducts,
-      );
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: ErrorRetryWidget(
+            errorMessage: errorMessage!,
+            onRetry: _loadProducts,
+          ),
+        ),
+      ];
     }
 
     if (products.isEmpty) {
@@ -196,81 +217,65 @@ class _ProductListScreenState extends State<ProductListScreen> {
           ? 'There are no products in ${widget.category} yet.'
           : 'There are no products in $selectedSubcategory subcategory yet.';
 
-      return ErrorRetryWidget(
-        mainMessage: 'No Products Found',
-        errorMessage: message,
-        onRetry: _loadProducts,
-        icon: Icons.inventory_2,
-        buttonText: 'Refresh',
-      );
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: ErrorRetryWidget(
+            mainMessage: 'No Products Found',
+            errorMessage: message,
+            onRetry: _loadProducts,
+            icon: Icons.inventory_2,
+            buttonText: 'Refresh',
+          ),
+        ),
+      ];
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadProducts,
-      color: kGreenColor,
-      backgroundColor: Colors.white,
-      // Use LayoutBuilder for responsiveness
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final screenWidth = constraints.maxWidth;
+    int crossAxisCount;
+    double childAspectRatio;
+    if (screenWidth >= 1200) {
+      crossAxisCount = 3;
+      childAspectRatio = 2.8;
+    } else if (screenWidth >= 800) {
+      crossAxisCount = 2;
+      childAspectRatio = 2.8;
+    } else {
+      crossAxisCount = 1;
+      childAspectRatio = 2.3;
+    }
 
-          // Define your breakpoints
-          int crossAxisCount;
-          double childAspectRatio;
-
-          if (screenWidth >= 1200) {
-            // Large desktop: 3 columns (optional)
-            crossAxisCount = 3;
-            childAspectRatio = 2.8;
-          } else if (screenWidth >= 800) {
-            // Tablet or Desktop: 2 columns
-            crossAxisCount = 2;
-            // The item is wide and short, so aspect ratio (width/height)
-            // should be a larger number. Adjust this value to control card height.
-            childAspectRatio = 2.8;
-          } else {
-            // Mobile: 1 column
-            crossAxisCount = 1;
-            // Keep a higher aspect ratio for mobile to make the card look
-            // like a standard list item.
-            childAspectRatio = 2.3;
-          }
-
-          const double spacing =
-              12.0; // Use fixed double for consistent spacing
-          return GridView.builder(
-            padding: const EdgeInsets.all(spacing),
-            itemCount: products.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossAxisCount,
-              childAspectRatio: childAspectRatio,
-              crossAxisSpacing: spacing,
-              mainAxisSpacing: spacing,
-            ),
-            itemBuilder: (context, index) {
-              final product = products[index];
-
-              //
-              return _ProductCard(
-                product: product,
-                onEdit: () {
-                  Get.to(
-                    () => EditProductScreen(
-                      product: product,
-                      onProductUpdated: _loadProducts,
-                    ),
-                    transition: Transition.cupertino,
-                    duration: const Duration(milliseconds: 400),
-                  );
-                },
-                onToggleVisibility: () => _showToggleVisibilityDialog(product),
-                onDelete: () => _showDeleteDialog(context, product.id!),
-              );
-            },
-          );
-        },
+    const spacing = 12.0;
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.all(spacing),
+        sliver: SliverGrid(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
+          ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final product = products[index];
+            return _ProductCard(
+              product: product,
+              onEdit: () {
+                Get.to(
+                  () => EditProductScreen(
+                    product: product,
+                    onProductUpdated: _loadProducts,
+                  ),
+                  transition: Transition.cupertino,
+                  duration: const Duration(milliseconds: 400),
+                );
+              },
+              onToggleVisibility: () => _showToggleVisibilityDialog(product),
+              onDelete: () => _showDeleteDialog(context, product.id!),
+            );
+          }, childCount: products.length),
+        ),
       ),
-    );
+    ];
   }
 
   void _showToggleVisibilityDialog(Product product) {

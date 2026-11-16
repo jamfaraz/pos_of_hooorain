@@ -46,282 +46,271 @@ class RidersScreen extends GetView<RidersController> {
     final pendingInvites = controller.invites
         .where((invite) => invite.status == 'pending')
         .toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageHeader(
-          title: 'Riders',
-          subtitle: 'Delivery team, monthly pay, and invitations.',
-          actions: [
-            AppButton(
-              label: 'Invite rider',
-              icon: const Icon(PhosphorIconsRegular.plus),
-              onPressed: () => _inviteRider(context),
-            ),
-          ],
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cols = constraints.maxWidth > 1000
-                ? 4
-                : constraints.maxWidth > 620
-                ? 2
-                : 1;
-            return GridView.count(
-              crossAxisCount: cols,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: cols == 1 ? 3.2 : 2.2,
-              children: [
-                KpiCard(
-                  label: 'Riders',
-                  value: '${controller.riders.length}',
-                  icon: PhosphorIconsRegular.motorcycle,
-                ),
-                KpiCard(
-                  label: 'On delivery now',
-                  value:
-                      '${controller.riders.where((rider) => rider.status == 'on_delivery').length}',
-                  icon: PhosphorIconsRegular.truck,
-                ),
-                KpiCard(
-                  label: 'Salary payable',
-                  value: Money.rs(controller.salaryPayable),
-                  caption: 'This month, after advances',
-                  icon: PhosphorIconsRegular.wallet,
-                ),
-                KpiCard(
-                  label: 'Advances given',
-                  value: Money.rs(controller.totalAdvances),
-                  icon: PhosphorIconsRegular.handCoins,
-                ),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                controller.riders.isEmpty
-                    ? const SizedBox(
-                        height: 190,
-                        child: EmptyState(
-                          title: 'No riders yet',
-                          message:
-                              'Invite a rider to start tracking deliveries and pay.',
-                        ),
-                      )
-                    : SizedBox(
-                        height: 58 * controller.riders.length + 52,
-                        child: AppTable(
-                          minWidth: 1050,
-                          columns: const [
-                            DataColumn2(
-                              label: Text('Rider'),
-                              size: ColumnSize.L,
-                            ),
-                            DataColumn2(label: Text('Status')),
-                            DataColumn2(
-                              label: Text('Deliveries'),
-                              numeric: true,
-                            ),
-                            DataColumn2(
-                              label: Text('Base salary'),
-                              numeric: true,
-                            ),
-                            DataColumn2(
-                              label: Text('Per delivery'),
-                              numeric: true,
-                            ),
-                            DataColumn2(label: Text('Advance'), numeric: true),
-                            DataColumn2(
-                              label: Text('Net payable'),
-                              numeric: true,
-                            ),
-                            DataColumn2(label: Text('Salary')),
-                          ],
-                          rows: controller.riders
-                              .map(
-                                (rider) => DataRow(
-                                  onSelectChanged: (_) =>
-                                      _openRider(context, rider),
-                                  cells: [
-                                    DataCell(
-                                      Row(
-                                        children: [
-                                          CircleAvatar(
-                                            child: Text(
-                                              rider.name.trim().isEmpty
-                                                  ? '?'
-                                                  : rider.name
-                                                        .trim()
-                                                        .substring(0, 1)
-                                                        .toUpperCase(),
-                                            ),
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PageHeader(
+            title: 'Riders',
+            subtitle: 'Delivery team, monthly pay, and invitations.',
+            actions: [
+              AppButton(
+                label: 'Invite rider',
+                icon: const Icon(PhosphorIconsRegular.plus),
+                onPressed: () => _inviteRider(context),
+              ),
+            ],
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth > 1000
+                  ? 4
+                  : constraints.maxWidth > 620
+                  ? 2
+                  : 1;
+              return GridView.count(
+                crossAxisCount: cols,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: cols == 1 ? 3.2 : 2.2,
+                children: [
+                  KpiCard(
+                    label: 'Riders',
+                    value: '${controller.riders.length}',
+                    icon: PhosphorIconsRegular.motorcycle,
+                  ),
+                  KpiCard(
+                    label: 'On delivery now',
+                    value:
+                        '${controller.riders.where((rider) => rider.status == 'on_delivery').length}',
+                    icon: PhosphorIconsRegular.truck,
+                  ),
+                  KpiCard(
+                    label: 'Salary payable',
+                    value: Money.rs(controller.salaryPayable),
+                    caption: 'This month, after advances',
+                    icon: PhosphorIconsRegular.wallet,
+                  ),
+                  KpiCard(
+                    label: 'Advances given',
+                    value: Money.rs(controller.totalAdvances),
+                    icon: PhosphorIconsRegular.handCoins,
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          Column(
+            children: [
+              controller.riders.isEmpty
+                  ? const SizedBox(
+                      height: 190,
+                      child: EmptyState(
+                        title: 'No riders yet',
+                        message:
+                            'Invite a rider to start tracking deliveries and pay.',
+                      ),
+                    )
+                  : SizedBox(
+                      height: 58 * controller.riders.length + 52,
+                      child: AppTable(
+                        minWidth: 1050,
+                        columns: const [
+                          DataColumn2(label: Text('Rider'), size: ColumnSize.L),
+                          DataColumn2(label: Text('Status')),
+                          DataColumn2(label: Text('Deliveries'), numeric: true),
+                          DataColumn2(
+                            label: Text('Base salary'),
+                            numeric: true,
+                          ),
+                          DataColumn2(
+                            label: Text('Per delivery'),
+                            numeric: true,
+                          ),
+                          DataColumn2(label: Text('Advance'), numeric: true),
+                          DataColumn2(
+                            label: Text('Net payable'),
+                            numeric: true,
+                          ),
+                          DataColumn2(label: Text('Salary')),
+                        ],
+                        rows: controller.riders
+                            .map(
+                              (rider) => DataRow(
+                                onSelectChanged: (_) =>
+                                    _openRider(context, rider),
+                                cells: [
+                                  DataCell(
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          child: Text(
+                                            rider.name.trim().isEmpty
+                                                ? '?'
+                                                : rider.name
+                                                      .trim()
+                                                      .substring(0, 1)
+                                                      .toUpperCase(),
                                           ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  rider.name,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                                Text(rider.phone),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    DataCell(
-                                      StatusChip(
-                                        label: _statusLabel(rider.status),
-                                        tone: rider.status == 'available'
-                                            ? StatusTone.good
-                                            : rider.status == 'on_delivery'
-                                            ? StatusTone.info
-                                            : StatusTone.warn,
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        '${controller.deliveryCount(rider)}',
-                                      ),
-                                    ),
-                                    DataCell(Text(Money.rs(rider.baseSalary))),
-                                    DataCell(
-                                      Text(Money.rs(rider.perDeliveryBonus)),
-                                    ),
-                                    DataCell(Text(Money.rs(rider.advance))),
-                                    DataCell(
-                                      Text(
-                                        Money.rs(controller.netPay(rider)),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
                                         ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                rider.name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              Text(rider.phone),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  DataCell(
+                                    StatusChip(
+                                      label: _statusLabel(rider.status),
+                                      tone: rider.status == 'available'
+                                          ? StatusTone.good
+                                          : rider.status == 'on_delivery'
+                                          ? StatusTone.info
+                                          : StatusTone.warn,
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text('${controller.deliveryCount(rider)}'),
+                                  ),
+                                  DataCell(Text(Money.rs(rider.baseSalary))),
+                                  DataCell(
+                                    Text(Money.rs(rider.perDeliveryBonus)),
+                                  ),
+                                  DataCell(Text(Money.rs(rider.advance))),
+                                  DataCell(
+                                    Text(
+                                      Money.rs(controller.netPay(rider)),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                    DataCell(
-                                      StatusChip(
-                                        label: controller.isPaid(rider)
-                                            ? 'Paid'
-                                            : 'Due',
-                                        tone: controller.isPaid(rider)
-                                            ? StatusTone.good
-                                            : StatusTone.warn,
+                                  ),
+                                  DataCell(
+                                    StatusChip(
+                                      label: controller.isPaid(rider)
+                                          ? 'Paid'
+                                          : 'Due',
+                                      tone: controller.isPaid(rider)
+                                          ? StatusTone.good
+                                          : StatusTone.warn,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ),
+              if (pendingInvites.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Pending invites',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 58 * pendingInvites.length + 52,
+                  child: AppTable(
+                    minWidth: 790,
+                    columns: const [
+                      DataColumn2(label: Text('Name'), size: ColumnSize.L),
+                      DataColumn2(label: Text('Phone')),
+                      DataColumn2(label: Text('Base salary'), numeric: true),
+                      DataColumn2(label: Text('Sent')),
+                      DataColumn2(label: Text('Actions'), size: ColumnSize.L),
+                    ],
+                    rows: pendingInvites
+                        .map(
+                          (invite) => DataRow(
+                            cells: [
+                              DataCell(
+                                Text(
+                                  invite.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              DataCell(Text(invite.phone)),
+                              DataCell(Text(Money.rs(invite.baseSalary))),
+                              DataCell(
+                                Text(
+                                  invite.sentAt == null
+                                      ? '—'
+                                      : '${invite.sentAt!.day}/${invite.sentAt!.month}/${invite.sentAt!.year}',
+                                ),
+                              ),
+                              DataCell(
+                                Wrap(
+                                  spacing: 4,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          _confirmAndResend(context, invite),
+                                      child: const Text('Resend'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => _confirmAndMarkJoined(
+                                        context,
+                                        invite,
                                       ),
+                                      child: const Text('Mark joined'),
+                                    ),
+                                    ConfirmTapButton(
+                                      label: 'Cancel',
+                                      confirmLabel: 'Cancel invite',
+                                      confirmTitle: 'Cancel rider invite?',
+                                      confirmMessage:
+                                          'The invite link will no longer be valid.',
+                                      onConfirmed: () async {
+                                        try {
+                                          await controller.cancelInvite(invite);
+                                        } catch (exception) {
+                                          Get.snackbar(
+                                            'Could not cancel invite',
+                                            exception.toString(),
+                                          );
+                                        }
+                                      },
                                     ),
                                   ],
                                 ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                if (pendingInvites.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Pending invites',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                              ),
+                            ],
+                          ),
+                        )
+                        .toList(),
                   ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 58 * pendingInvites.length + 52,
-                    child: AppTable(
-                      minWidth: 790,
-                      columns: const [
-                        DataColumn2(label: Text('Name'), size: ColumnSize.L),
-                        DataColumn2(label: Text('Phone')),
-                        DataColumn2(label: Text('Base salary'), numeric: true),
-                        DataColumn2(label: Text('Sent')),
-                        DataColumn2(label: Text('Actions'), size: ColumnSize.L),
-                      ],
-                      rows: pendingInvites
-                          .map(
-                            (invite) => DataRow(
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    invite.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                DataCell(Text(invite.phone)),
-                                DataCell(Text(Money.rs(invite.baseSalary))),
-                                DataCell(
-                                  Text(
-                                    invite.sentAt == null
-                                        ? '—'
-                                        : '${invite.sentAt!.day}/${invite.sentAt!.month}/${invite.sentAt!.year}',
-                                  ),
-                                ),
-                                DataCell(
-                                  Wrap(
-                                    spacing: 4,
-                                    children: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            _confirmAndResend(context, invite),
-                                        child: const Text('Resend'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => _confirmAndMarkJoined(
-                                          context,
-                                          invite,
-                                        ),
-                                        child: const Text('Mark joined'),
-                                      ),
-                                      ConfirmTapButton(
-                                        label: 'Cancel',
-                                        confirmLabel: 'Cancel invite',
-                                        confirmTitle: 'Cancel rider invite?',
-                                        confirmMessage:
-                                            'The invite link will no longer be valid.',
-                                        onConfirmed: () async {
-                                          try {
-                                            await controller.cancelInvite(
-                                              invite,
-                                            );
-                                          } catch (exception) {
-                                            Get.snackbar(
-                                              'Could not cancel invite',
-                                              exception.toString(),
-                                            );
-                                          }
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ],
+                ),
               ],
-            ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   });
 

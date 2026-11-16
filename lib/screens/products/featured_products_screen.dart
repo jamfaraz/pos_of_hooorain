@@ -373,13 +373,24 @@ class _FeaturedProductsScreenState extends State<FeaturedProductsScreen>
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildStatsHeader(featuredProductsCount, filteredProducts.length),
-          _buildSearchBar(),
-          _buildFilterChips(),
-          Expanded(child: _buildBody(filteredProducts)),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _loadFeaturedProducts,
+        color: kGreenColor,
+        backgroundColor: Colors.white,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: _buildStatsHeader(
+                featuredProductsCount,
+                filteredProducts.length,
+              ),
+            ),
+            SliverToBoxAdapter(child: _buildSearchBar()),
+            SliverToBoxAdapter(child: _buildFilterChips()),
+            _buildBody(filteredProducts),
+          ],
+        ),
       ),
     );
   }
@@ -458,36 +469,39 @@ class _FeaturedProductsScreenState extends State<FeaturedProductsScreen>
 
   Widget _buildBody(List<Product> productsToDisplay) {
     if (isLoading) {
-      return const AppLoader(label: 'Loading featured products...');
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(child: AppLoader(label: 'Loading featured products...')),
+      );
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: ErrorRetryWidget(
-          errorMessage: errorMessage!,
-          onRetry: _loadFeaturedProducts,
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: ErrorRetryWidget(
+            errorMessage: errorMessage!,
+            onRetry: _loadFeaturedProducts,
+          ),
         ),
       );
     }
 
     if (productsToDisplay.isEmpty) {
-      return _buildEmptyState(_isSearching);
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _buildEmptyState(_isSearching),
+      );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadFeaturedProducts,
-      color: kGreenColor,
-      backgroundColor: Colors.white,
-      child: ListView.separated(
-        padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
-        itemCount: productsToDisplay.length,
-        shrinkWrap: true,
-        physics: AlwaysScrollableScrollPhysics(),
-        separatorBuilder: (context, index) => SizedBox(height: 9.h),
-        itemBuilder: (context, index) {
-          final product = productsToDisplay[index];
-          return _buildProductCard(product, index);
-        },
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          if (index.isOdd) return SizedBox(height: 9.h);
+          final product = productsToDisplay[index ~/ 2];
+          return _buildProductCard(product, index ~/ 2);
+        }, childCount: productsToDisplay.length * 2 - 1),
       ),
     );
   }

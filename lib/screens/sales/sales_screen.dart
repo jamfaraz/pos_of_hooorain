@@ -23,144 +23,149 @@ class SalesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageHeader(
-          title: 'Sales and profit',
-          subtitle:
-              'Review counter and online sales across the selected period.',
-          actions: [
-            OutlinedButton.icon(
-              onPressed: controller.refresh,
-              icon: const Icon(PhosphorIconsRegular.arrowClockwise, size: 18),
-              label: const Text('Refresh'),
+    return RefreshIndicator(
+      color: theme.colorScheme.primary,
+      onRefresh: controller.refresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PageHeader(
+              title: 'Sales and profit',
+              subtitle:
+                  'Review counter and online sales across the selected period.',
+              actions: [
+                OutlinedButton.icon(
+                  onPressed: controller.refresh,
+                  icon: const Icon(
+                    PhosphorIconsRegular.arrowClockwise,
+                    size: 18,
+                  ),
+                  label: const Text('Refresh'),
+                ),
+              ],
             ),
-          ],
-        ),
-        _RangeControls(controller: controller),
-        const SizedBox(height: 18),
-        Expanded(
-          child: Obx(() {
-            if (controller.isLoading.value) {
-              return const AppLoader(label: 'Loading sales...');
-            }
-            if (controller.hasError.value) {
-              return ErrorRetryWidget(
-                errorMessage: controller.errorMessage.value,
-                onRetry: controller.refresh,
-              );
-            }
-            if (controller.filteredOrders.isEmpty) {
-              return const EmptyState(
-                title: 'No sales in this period',
-                message: 'Choose a different date range to view sales.',
-                icon: PhosphorIconsRegular.receipt,
-              );
-            }
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 1200
-                    ? 4
-                    : constraints.maxWidth >= 700
-                    ? 2
-                    : 1;
-                final gap = 12.0;
-                final cardWidth =
-                    (constraints.maxWidth - gap * (columns - 1)) / columns;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: gap,
-                      runSpacing: gap,
-                      children: [
-                        _MetricCard(
-                          width: cardWidth,
-                          label: 'Total sales',
-                          value: Money.rs(controller.totalSales.value),
-                          icon: PhosphorIconsRegular.currencyDollar,
-                          color: theme.colorScheme.primary,
-                          note: controller.rangeLabel,
-                        ),
-                        _MetricCard(
-                          width: cardWidth,
-                          label: 'Orders',
-                          value: '${controller.totalOrders.value}',
-                          icon: PhosphorIconsRegular.receipt,
-                          color: theme.colorScheme.secondary,
-                          note:
-                              '${controller.filteredOrders.length} in this view',
-                        ),
-                        _MetricCard(
-                          width: cardWidth,
-                          label: 'Delivered sales',
-                          value: Money.rs(controller.deliveredRevenue.value),
-                          icon: PhosphorIconsRegular.checkCircle,
-                          color: AppColors.ok,
-                          note: 'Completed orders',
-                        ),
-                        _MetricCard(
-                          width: cardWidth,
-                          label: 'Order statuses',
-                          value: '${controller.statusBreakdown.length}',
-                          icon: PhosphorIconsRegular.chartBar,
-                          color: AppColors.info,
-                          note: 'Statuses in this period',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    _StatusSummary(controller: controller),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Order history',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+            _RangeControls(controller: controller),
+            const SizedBox(height: 18),
+            Obx(() {
+              if (controller.isLoading.value) {
+                return const AppLoader(label: 'Loading sales...');
+              }
+              if (controller.hasError.value) {
+                return ErrorRetryWidget(
+                  errorMessage: controller.errorMessage.value,
+                  onRetry: controller.refresh,
+                );
+              }
+              if (controller.filteredOrders.isEmpty) {
+                return const EmptyState(
+                  title: 'No sales in this period',
+                  message: 'Choose a different date range to view sales.',
+                  icon: PhosphorIconsRegular.receipt,
+                );
+              }
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 1200
+                      ? 4
+                      : constraints.maxWidth >= 700
+                      ? 2
+                      : 1;
+                  final gap = 12.0;
+                  final cardWidth =
+                      (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          _MetricCard(
+                            width: cardWidth,
+                            label: 'Total sales',
+                            value: Money.rs(controller.totalSales.value),
+                            icon: PhosphorIconsRegular.currencyDollar,
+                            color: theme.colorScheme.primary,
+                            note: controller.rangeLabel,
                           ),
-                        ),
-                        Text(
-                          '${controller.rangeLabel} · ${controller.filteredOrders.length} orders',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                          _MetricCard(
+                            width: cardWidth,
+                            label: 'Orders',
+                            value: '${controller.totalOrders.value}',
+                            icon: PhosphorIconsRegular.receipt,
+                            color: theme.colorScheme.secondary,
+                            note:
+                                '${controller.filteredOrders.length} in this view',
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: constraints.maxWidth >= 900
-                          ? _SalesTable(
-                              orders: controller.filteredOrders,
-                              dateFormat: _dateFormat,
-                            )
-                          : RefreshIndicator(
-                              color: theme.colorScheme.primary,
-                              onRefresh: controller.refresh,
-                              child: ListView.separated(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                itemCount: controller.filteredOrders.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 10),
-                                itemBuilder: (context, index) =>
-                                    _SalesOrderCard(
-                                      order: controller.filteredOrders[index],
-                                      dateFormat: _dateFormat,
-                                    ),
+                          _MetricCard(
+                            width: cardWidth,
+                            label: 'Delivered sales',
+                            value: Money.rs(controller.deliveredRevenue.value),
+                            icon: PhosphorIconsRegular.checkCircle,
+                            color: AppColors.ok,
+                            note: 'Completed orders',
+                          ),
+                          _MetricCard(
+                            width: cardWidth,
+                            label: 'Order statuses',
+                            value: '${controller.statusBreakdown.length}',
+                            icon: PhosphorIconsRegular.chartBar,
+                            color: AppColors.info,
+                            note: 'Statuses in this period',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _StatusSummary(controller: controller),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Order history',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                    ),
-                  ],
-                );
-              },
-            );
-          }),
+                          ),
+                          Text(
+                            '${controller.rangeLabel} · ${controller.filteredOrders.length} orders',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (constraints.maxWidth >= 900)
+                        SizedBox(
+                          height:
+                              48.0 + 58.0 * controller.filteredOrders.length,
+                          child: _SalesTable(
+                            orders: controller.filteredOrders,
+                            dateFormat: _dateFormat,
+                          ),
+                        )
+                      else
+                        ...controller.filteredOrders.map(
+                          (order) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _SalesOrderCard(
+                              order: order,
+                              dateFormat: _dateFormat,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              );
+            }),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

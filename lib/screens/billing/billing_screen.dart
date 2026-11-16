@@ -13,7 +13,6 @@ import '../../utils/pricing.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/common_dialog.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/page_header.dart';
 import '../../widgets/primary_textfield.dart';
 import '../../widgets/retry_widget.dart';
 
@@ -21,67 +20,127 @@ class BillingScreen extends GetView<BillingController> {
   const BillingScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Obx(() {
-    if (controller.loading.value && controller.products.isEmpty) {
-      return const Center(child: AppLoader(label: 'Loading products...'));
-    }
-    if (controller.error.value != null && controller.products.isEmpty) {
-      return ErrorRetryWidget(
-        errorMessage: controller.error.value!,
-        onRetry: controller.reload,
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageHeader(
-          title: 'Billing',
-          subtitle: 'Counter sales. Stock is updated as each bill is saved.',
-          bottomSpacing: 10,
-          actions: [
-            OutlinedButton.icon(
-              onPressed: () => Get.toNamed('/bill-history'),
-              icon: const Icon(PhosphorIconsRegular.receipt, size: 18),
-              label: const Text('Bill history'),
-            ),
-          ],
-        ),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth >= 900) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      flex: 11,
-                      child: _ProductPicker(controller: controller),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      flex: 9,
-                      child: _CurrentBillPanel(controller: controller),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final compactTheme = theme.copyWith(
+      textTheme: theme.textTheme.apply(fontSizeFactor: 0.94),
+      primaryTextTheme: theme.primaryTextTheme.apply(fontSizeFactor: 0.94),
+    );
+    return Theme(
+      data: compactTheme,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 900;
+          final compact = constraints.maxWidth < 500;
+          return Obx(
+            () => CustomScrollView(
+              slivers: [
+                SliverAppBar(
+                  automaticallyImplyLeading: false,
+                  floating: false,
+                  pinned: false,
+                  toolbarHeight: compact ? 76 : 84,
+                  titleSpacing: 0,
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+                  surfaceTintColor: Colors.transparent,
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Billing',
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                      if (!compact)
+                        Text(
+                          'Counter sales. Stock updates when a bill is saved.',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                    ],
+                  ),
+                  actions: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: compact
+                          ? IconButton(
+                              tooltip: 'Bill history',
+                              onPressed: () => Get.toNamed('/bill-history'),
+                              icon: const Icon(PhosphorIconsRegular.receipt),
+                            )
+                          : OutlinedButton.icon(
+                              onPressed: () => Get.toNamed('/bill-history'),
+                              icon: const Icon(
+                                PhosphorIconsRegular.receipt,
+                                size: 18,
+                              ),
+                              label: const Text('Bill history'),
+                            ),
                     ),
                   ],
-                );
-              }
-              return Column(
-                children: [
-                  Expanded(child: _ProductPicker(controller: controller)),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    height: constraints.maxHeight * 0.62,
-                    child: _CurrentBillPanel(controller: controller),
+                ),
+                if (controller.loading.value && controller.products.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: AppLoader(label: 'Loading products...'),
+                    ),
+                  )
+                else if (controller.error.value != null &&
+                    controller.products.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: ErrorRetryWidget(
+                      errorMessage: controller.error.value!,
+                      onRetry: controller.reload,
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    sliver: SliverToBoxAdapter(
+                      child: wide
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 13,
+                                  child: _ProductPicker(controller: controller),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  flex: 7,
+                                  child: _CurrentBillPanel(
+                                    controller: controller,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _ProductPicker(controller: controller),
+                                const SizedBox(height: 14),
+                                _CurrentBillPanel(controller: controller),
+                              ],
+                            ),
+                    ),
                   ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
+              ],
+            ),
+          );
+        },
+      ),
     );
-  });
+  }
 }
 
 class BillingNewBillAction extends GetView<BillingController> {
@@ -190,81 +249,82 @@ class _ProductPicker extends StatelessWidget {
           }),
         ),
         const SizedBox(height: 10),
-        Expanded(
-          child: Obx(() {
-            final products = controller.filteredProducts;
-            final shopCustomer = controller.customerType.value == 'shop';
-            final availableOffers = controller.offers.toList();
-            final isSaving = controller.saving.value;
-            if (products.isEmpty) {
+        Obx(() {
+          final products = controller.filteredProducts;
+          final shopCustomer = controller.customerType.value == 'shop';
+          final availableOffers = controller.offers.toList();
+          final isSaving = controller.saving.value;
+          if (products.isEmpty) {
+            final noStockProducts =
+                controller.products.isNotEmpty &&
+                controller.products.every((product) => !product.inStock);
+            return Column(
+              children: [
+                EmptyState(
+                  title: controller.products.isEmpty
+                      ? 'No products available'
+                      : noStockProducts
+                      ? 'No in-stock products'
+                      : 'No products match',
+                  message: controller.products.isEmpty
+                      ? 'Active products will appear here.'
+                      : noStockProducts
+                      ? 'Products will appear here when stock is added.'
+                      : 'Try a different product name, SKU, or category.',
+                  icon: PhosphorIconsRegular.package,
+                ),
+                _LoadMoreProducts(controller: controller),
+              ],
+            );
+          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 680
+                  ? 4
+                  : constraints.maxWidth >= 450
+                  ? 3
+                  : constraints.maxWidth >= 320
+                  ? 2
+                  : 1;
               return Column(
                 children: [
-                  Expanded(
-                    child: EmptyState(
-                      title: controller.products.isEmpty
-                          ? 'No products available'
-                          : 'No products match',
-                      message: controller.products.isEmpty
-                          ? 'Active products will appear here.'
-                          : 'Try a different product name, SKU, or category.',
-                      icon: PhosphorIconsRegular.package,
+                  GridView.builder(
+                    key: ValueKey(
+                      '${controller.searchQuery.value}|'
+                      '${controller.selectedCategory.value}',
                     ),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 8),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 0.94,
+                    ),
+                    itemCount: products.length,
+                    itemBuilder: (context, index) {
+                      final product = products[index];
+                      return _ProductCard(
+                        product: product,
+                        price: unitPrice(
+                          product: product,
+                          shopCustomer: shopCustomer,
+                          quantity: 1,
+                          offers: availableOffers,
+                        ),
+                        onTap: product.inStock && !isSaving
+                            ? () => controller.addProduct(product)
+                            : null,
+                      );
+                    },
                   ),
                   _LoadMoreProducts(controller: controller),
                 ],
               );
-            }
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 760
-                    ? 4
-                    : constraints.maxWidth >= 520
-                    ? 3
-                    : constraints.maxWidth >= 350
-                    ? 2
-                    : 1;
-                return CustomScrollView(
-                  key: ValueKey(
-                    '${controller.searchQuery.value}|'
-                    '${controller.selectedCategory.value}',
-                  ),
-                  slivers: [
-                    SliverPadding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      sliver: SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: columns,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 0.96,
-                        ),
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final product = products[index];
-                          return _ProductCard(
-                            product: product,
-                            price: unitPrice(
-                              product: product,
-                              shopCustomer: shopCustomer,
-                              quantity: 1,
-                              offers: availableOffers,
-                            ),
-                            outOfStock: product.stock <= 0,
-                            onTap: product.stock > 0 && !isSaving
-                                ? () => controller.addProduct(product)
-                                : null,
-                          );
-                        }, childCount: products.length),
-                      ),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _LoadMoreProducts(controller: controller),
-                    ),
-                  ],
-                );
-              },
-            );
-          }),
-        ),
+            },
+          );
+        }),
       ],
     );
   }
@@ -329,13 +389,11 @@ class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
     required this.price,
-    required this.outOfStock,
     required this.onTap,
   });
 
   final ProductRecord product;
   final double price;
-  final bool outOfStock;
   final VoidCallback? onTap;
 
   int? get _bulkQuantity {
@@ -360,22 +418,22 @@ class _ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final imageUrl = product.images.isNotEmpty
-        ? product.images.first
-        : product.imageUrl;
+    final imageUrl =
+        product.images.where((image) => image.trim().isNotEmpty).firstOrNull ??
+        product.imageUrl;
     final bulkQuantity = _bulkQuantity;
     return Card(
       elevation: 1,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(18),
         side: BorderSide(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 5,
+            flex: 6,
             child: InkWell(
               onTap: onTap,
               child: Stack(
@@ -397,7 +455,26 @@ class _ProductCard extends StatelessWidget {
                       child: imageUrl?.isNotEmpty == true
                           ? Image.network(
                               imageUrl!,
+                              width: double.infinity,
+                              height: double.infinity,
                               fit: BoxFit.contain,
+                              alignment: Alignment.center,
+                              filterQuality: FilterQuality.medium,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Center(
+                                  child: SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      value: progress.expectedTotalBytes == null
+                                          ? null
+                                          : progress.cumulativeBytesLoaded /
+                                                progress.expectedTotalBytes!,
+                                    ),
+                                  ),
+                                );
+                              },
                               errorBuilder: (_, _, _) =>
                                   _imagePlaceholder(context),
                             )
@@ -427,38 +504,15 @@ class _ProductCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (outOfStock)
-                    Positioned(
-                      top: 9,
-                      right: 9,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Text(
-                          'Out of stock',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onErrorContainer,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
+                  Positioned(
+                    left: 8,
+                    bottom: 8,
+                    child: _stockBadge(
+                      context,
+                      '${product.stock} in stock',
+                      theme.colorScheme.onSurfaceVariant,
                     ),
-                  if (!outOfStock)
-                    Positioned(
-                      left: 8,
-                      bottom: 8,
-                      child: _stockBadge(
-                        context,
-                        '${product.stock} in stock',
-                        theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                  ),
                 ],
               ),
             ),
@@ -474,9 +528,9 @@ class _ProductCard extends StatelessWidget {
                     product.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.dmSans(
+                    style: GoogleFonts.plusJakartaSans(
                       color: theme.colorScheme.onSurface,
-                      fontSize: 13.5,
+                      fontSize: 12.5,
                       height: 1.15,
                       fontWeight: FontWeight.w700,
                     ),
@@ -491,7 +545,7 @@ class _ProductCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
                             color: theme.colorScheme.primary,
-                            fontSize: 15,
+                            fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -578,155 +632,152 @@ class _CurrentBillPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Current bill',
-                            style: theme.textTheme.titleMedium?.copyWith(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Current bill',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Obx(() {
+                        final count = controller.cart.length;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$count ${count == 1 ? 'ITEM' : 'ITEMS'}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
                               fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Obx(() {
-                            final count = controller.cart.length;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                '$count ${count == 1 ? 'ITEM' : 'ITEMS'}',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.4,
-                                ),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
-                    ),
-                    Obx(
-                      () => IconButton(
-                        tooltip: 'Clear bill',
-                        onPressed: controller.saving.value
-                            ? null
-                            : () => _clearBill(context),
-                        style: IconButton.styleFrom(
-                          backgroundColor: theme.colorScheme.errorContainer
-                              .withValues(alpha: 0.65),
-                          foregroundColor: theme.colorScheme.error,
-                        ),
-                        icon: const Icon(PhosphorIconsRegular.trash, size: 18),
-                      ),
-                    ),
-                  ],
+                        );
+                      }),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
                 Obx(
-                  () => CommonDropdown<String>(
-                    label: 'Customer',
-                    bottomSpacing: 0,
-                    value: controller.selectedCustomerId.value ?? '',
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('Walk-in customer'),
+                  () => IconButton(
+                    tooltip: 'Clear bill',
+                    onPressed: controller.saving.value
+                        ? null
+                        : () => _clearBill(context),
+                    style: IconButton.styleFrom(
+                      backgroundColor: theme.colorScheme.errorContainer
+                          .withValues(alpha: 0.65),
+                      foregroundColor: theme.colorScheme.error,
+                    ),
+                    icon: const Icon(PhosphorIconsRegular.trash, size: 18),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Obx(
+              () => CommonDropdown<String>(
+                label: 'Customer',
+                bottomSpacing: 0,
+                value: controller.selectedCustomerId.value ?? '',
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Walk-in customer'),
+                  ),
+                  ...controller.customers.map(
+                    (customer) => DropdownMenuItem(
+                      value: customer.id,
+                      child: Text(
+                        customer.isVerified
+                            ? '${customer.fullName} · verified'
+                            : customer.fullName,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      ...controller.customers.map(
-                        (customer) => DropdownMenuItem(
-                          value: customer.id,
-                          child: Text(
-                            customer.isVerified
-                                ? '${customer.fullName} · verified'
-                                : customer.fullName,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                    ),
+                  ),
+                ],
+                onChanged: controller.saving.value
+                    ? null
+                    : (value) {
+                        controller.selectedCustomerId.value =
+                            value == null || value.isEmpty ? null : value;
+                      },
+              ),
+            ),
+            const SizedBox(height: 8),
+            Obx(
+              () => SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<String>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(value: 'home', label: Text('Home user')),
+                    ButtonSegment(value: 'shop', label: Text('Shop owner')),
+                  ],
+                  selected: {controller.customerType.value},
+                  onSelectionChanged: controller.saving.value
+                      ? null
+                      : (values) => controller.setCustomerType(values.first),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Obx(() {
+              final editingEnabled = !controller.saving.value;
+              if (controller.cart.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        PhosphorIconsRegular.handTap,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your bill is empty',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        'Add a product to get started.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                    onChanged: controller.saving.value
-                        ? null
-                        : (value) {
-                            controller.selectedCustomerId.value =
-                                value == null || value.isEmpty ? null : value;
-                          },
                   ),
-                ),
-                const SizedBox(height: 8),
-                Obx(
-                  () => SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<String>(
-                      showSelectedIcon: false,
-                      segments: const [
-                        ButtonSegment(value: 'home', label: Text('Home user')),
-                        ButtonSegment(value: 'shop', label: Text('Shop owner')),
-                      ],
-                      selected: {controller.customerType.value},
-                      onSelectionChanged: controller.saving.value
-                          ? null
-                          : (values) =>
-                                controller.setCustomerType(values.first),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Expanded(
-                  child: Obx(() {
-                    final editingEnabled = !controller.saving.value;
-                    if (controller.cart.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              PhosphorIconsRegular.handTap,
-                              size: 20,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Your bill is empty',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              'Add a product to get started.',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                    return ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: controller.cart.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 6),
-                      itemBuilder: (context, index) {
-                        final line = controller.cart[index];
-                        return _BillLine(
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Column(
+                  children: [
+                    for (final line in controller.cart)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _BillLine(
                           line: line,
                           onDecrease: editingEnabled
                               ? () => controller.changeQuantity(
@@ -743,49 +794,32 @@ class _CurrentBillPanel extends StatelessWidget {
                           onRemove: editingEnabled
                               ? () => controller.changeQuantity(line, 0)
                               : null,
-                        );
-                      },
-                    );
-                  }),
-                ),
-                Obx(() {
-                  final message = controller.error.value;
-                  if (message == null) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      message,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.error,
+                        ),
                       ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 4),
-                Obx(() {
-                  final itemCount = controller.cart.length;
-                  final ratio = itemCount > 2
-                      ? 0.22
-                      : itemCount > 0
-                      ? 0.25
-                      : 0.30;
-                  final minHeight = itemCount > 0 ? 116.0 : 136.0;
-                  final maxHeight = itemCount > 0 ? 160.0 : 210.0;
-                  final summaryHeight = (constraints.maxHeight * ratio)
-                      .clamp(minHeight, maxHeight)
-                      .toDouble();
-                  return SizedBox(
-                    height: summaryHeight,
-                    child: _BillSummary(controller: controller),
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
-      },
+                  ],
+                ),
+              );
+            }),
+            Obx(() {
+              final message = controller.error.value;
+              if (message == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  message,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 4),
+            _BillSummary(controller: controller),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -934,119 +968,113 @@ class _BillSummary extends StatelessWidget {
       return Column(
         children: [
           Divider(height: 1, color: theme.dividerColor),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
+          Column(
+            children: [
+              _SummaryRow(
+                label: 'Subtotal',
+                value: Money.rs(controller.subtotal),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _SummaryRow(
-                    label: 'Subtotal',
-                    value: Money.rs(controller.subtotal),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Discount',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
                           children: [
-                            Text(
-                              'Discount',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 32,
-                                    child: TextField(
-                                      controller: controller.discountController,
-                                      enabled: !controller.saving.value,
-                                      keyboardType:
-                                          const TextInputType.numberWithOptions(
-                                            decimal: true,
-                                          ),
-                                      onChanged: (_) =>
-                                          controller.cart.refresh(),
-                                      decoration: const InputDecoration(
-                                        isDense: true,
-                                        hintText: '0',
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 6,
-                                        ),
+                            Expanded(
+                              child: SizedBox(
+                                height: 32,
+                                child: TextField(
+                                  controller: controller.discountController,
+                                  enabled: !controller.saving.value,
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
                                       ),
+                                  onChanged: (_) => controller.cart.refresh(),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    hintText: '0',
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 6,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                ToggleButtons(
-                                  isSelected: [
-                                    !controller.isDiscountPercent.value,
-                                    controller.isDiscountPercent.value,
-                                  ],
-                                  onPressed: controller.saving.value
-                                      ? null
-                                      : (index) {
-                                          controller.isDiscountPercent.value =
-                                              index == 1;
-                                          controller.cart.refresh();
-                                        },
-                                  borderRadius: BorderRadius.circular(8),
-                                  constraints: const BoxConstraints(
-                                    minHeight: 32,
-                                    minWidth: 29,
-                                  ),
-                                  children: const [Text('Rs'), Text('%')],
-                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            ToggleButtons(
+                              isSelected: [
+                                !controller.isDiscountPercent.value,
+                                controller.isDiscountPercent.value,
                               ],
+                              onPressed: controller.saving.value
+                                  ? null
+                                  : (index) {
+                                      controller.isDiscountPercent.value =
+                                          index == 1;
+                                      controller.cart.refresh();
+                                    },
+                              borderRadius: BorderRadius.circular(8),
+                              constraints: const BoxConstraints(
+                                minHeight: 32,
+                                minWidth: 29,
+                              ),
+                              children: const [Text('Rs'), Text('%')],
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Delivery',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            SizedBox(
-                              height: 32,
-                              child: TextField(
-                                controller: controller.deliveryController,
-                                enabled: !controller.saving.value,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                onChanged: (_) => controller.cart.refresh(),
-                                decoration: const InputDecoration(
-                                  isDense: true,
-                                  hintText: '0',
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 7,
-                                    vertical: 6,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Delivery',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          height: 32,
+                          child: TextField(
+                            controller: controller.deliveryController,
+                            enabled: !controller.saving.value,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (_) => controller.cart.refresh(),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              hintText: '0',
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 6,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
           const SizedBox(height: 8),
           SizedBox(

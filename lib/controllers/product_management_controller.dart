@@ -20,8 +20,12 @@ class ProductManagementController extends GetxController {
   final canLoadMore = false.obs;
   final error = RxnString();
   final loadMoreError = RxnString();
+  final productCounts = <String, int>{'all': 0, 'featured': 0, 'hidden': 0}.obs;
+  final productCountsError = RxnString();
   final search = ''.obs;
   final mode = 'all'.obs;
+  bool _countsInitialized = false;
+  bool _hasLoadedMoreProducts = false;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _productsSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _categoriesSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _offersSub;
@@ -37,25 +41,50 @@ class ProductManagementController extends GetxController {
     loading.value = true;
     error.value = null;
     loadMoreError.value = null;
+    _hasLoadedMoreProducts = false;
     _productsSub?.cancel();
     _categoriesSub?.cancel();
     _offersSub?.cancel();
-    _productsSub = _service.watchProducts().listen(
-      (snapshot) {
-        products.assignAll(
-          snapshot.docs.map(
-            (doc) => ProductRecord.fromMap(doc.data(), id: doc.id),
-          ),
+    _productsSub = _service
+        .watchProductScreenPage(mode: mode.value)
+        .listen(
+          (snapshot) {
+            final firstPage = snapshot.docs
+                .map((doc) => ProductRecord.fromMap(doc.data(), id: doc.id))
+                .toList();
+            final firstPageIds = firstPage
+                .map((product) => product.id)
+                .whereType<String>()
+                .toSet();
+            final laterPages = _hasLoadedMoreProducts
+                ? products
+                      .where(
+                        (product) =>
+                            product.id == null ||
+                            !firstPageIds.contains(product.id),
+                      )
+                      .toList()
+                : <ProductRecord>[];
+            products.assignAll([...firstPage, ...laterPages]);
+            if (!_hasLoadedMoreProducts) {
+              _lastProductDoc = snapshot.docs.isEmpty
+                  ? null
+                  : snapshot.docs.last;
+              canLoadMore.value =
+                  snapshot.docs.length ==
+                  ControlRoomService.productScreenPageSize;
+            }
+            loading.value = false;
+          },
+          onError: (Object exception) {
+            error.value = exception.toString();
+            loading.value = false;
+          },
         );
-        _lastProductDoc = snapshot.docs.isEmpty ? null : snapshot.docs.last;
-        canLoadMore.value = snapshot.docs.length == ControlRoomService.pageSize;
-        loading.value = false;
-      },
-      onError: (Object exception) {
-        error.value = exception.toString();
-        loading.value = false;
-      },
-    );
+    if (!_countsInitialized) {
+      _countsInitialized = true;
+      unawaited(refreshProductCounts());
+    }
     _categoriesSub = _service.watchCategories().listen((snapshot) {
       categories.assignAll(
         snapshot.docs.map(
@@ -76,17 +105,17 @@ class ProductManagementController extends GetxController {
     loadingMore.value = true;
     loadMoreError.value = null;
     try {
-      final page = await _service.fetchPage(
-        'products',
+      final page = await _service.fetchProductScreenPage(
+        mode: mode.value,
         after: cursor,
-        orderBy: 'name',
-        descending: false,
       );
       products.addAll(
         page.docs.map((doc) => ProductRecord.fromMap(doc.data(), id: doc.id)),
       );
+      if (page.docs.isNotEmpty) _hasLoadedMoreProducts = true;
       _lastProductDoc = page.docs.isEmpty ? null : page.docs.last;
-      canLoadMore.value = page.docs.length == ControlRoomService.pageSize;
+      canLoadMore.value =
+          page.docs.length == ControlRoomService.productScreenPageSize;
     } catch (exception) {
       loadMoreError.value = exception.toString();
     } finally {
@@ -94,10 +123,12 @@ class ProductManagementController extends GetxController {
     }
   }
 
-  List<ProductRecord> get filteredProducts {
+  List<ProductRecord> get filteredProducts => filteredProductsFor(mode.value);
+
+  List<ProductRecord> filteredProductsFor(String selectedMode) {
     final needle = search.value.trim().toLowerCase();
     return products.where((product) {
-      final matchesMode = switch (mode.value) {
+      final matchesMode = switch (selectedMode) {
         'featured' => product.featured,
         'hidden' => !product.active,
         _ => true,
@@ -108,6 +139,36 @@ class ProductManagementController extends GetxController {
           product.sku.toLowerCase().contains(needle);
       return matchesMode && matchesSearch;
     }).toList();
+  }
+
+  void configureScreen(String selectedMode) {
+    if (mode.value == selectedMode) return;
+    mode.value = selectedMode;
+    products.clear();
+    _lastProductDoc = null;
+    _hasLoadedMoreProducts = false;
+    canLoadMore.value = false;
+    reload();
+  }
+
+  void setMode(String selectedMode) => configureScreen(selectedMode);
+
+  Future<void> refreshProductCounts() async {
+    productCountsError.value = null;
+    try {
+      final counts = await Future.wait([
+        _service.countProductScreen('all'),
+        _service.countProductScreen('featured'),
+        _service.countProductScreen('hidden'),
+      ]);
+      productCounts.assignAll({
+        'all': counts[0],
+        'featured': counts[1],
+        'hidden': counts[2],
+      });
+    } catch (exception) {
+      productCountsError.value = exception.toString();
+    }
   }
 
   String categoryName(String id) =>
@@ -123,6 +184,7 @@ class ProductManagementController extends GetxController {
   Future<void> saveProduct(ProductRecord product) async {
     try {
       await _service.saveProduct(product);
+      unawaited(refreshProductCounts());
     } catch (exception) {
       error.value = exception.toString();
       rethrow;
@@ -135,9 +197,11 @@ class ProductManagementController extends GetxController {
     try {
       if (await _service.hasSalesHistory(id)) {
         await _service.saveProduct(product.copyWith(active: false));
+        unawaited(refreshProductCounts());
         return false;
       }
       await _service.deleteProduct(id);
+      unawaited(refreshProductCounts());
       return true;
     } catch (exception) {
       error.value = exception.toString();

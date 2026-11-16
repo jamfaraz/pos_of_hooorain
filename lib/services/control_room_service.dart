@@ -13,15 +13,17 @@ class ControlRoomService {
 
   final FirebaseFirestore _firestore;
   static const pageSize = 30;
+  static const productScreenPageSize = 20;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchPage(
     String collection, {
     String orderBy = 'createdAt',
     bool descending = true,
+    int limit = pageSize,
   }) => _firestore
       .collection(collection)
       .orderBy(orderBy, descending: descending)
-      .limit(pageSize)
+      .limit(limit)
       .snapshots();
 
   Future<QuerySnapshot<Map<String, dynamic>>> fetchPage(
@@ -29,12 +31,13 @@ class ControlRoomService {
     DocumentSnapshot<Map<String, dynamic>>? after,
     String orderBy = 'createdAt',
     bool descending = true,
+    int limit = pageSize,
   }) {
     Query<Map<String, dynamic>> query = _firestore
         .collection(collection)
         .orderBy(orderBy, descending: descending);
     if (after != null) query = query.startAfterDocument(after);
-    return query.limit(pageSize).get();
+    return query.limit(limit).get();
   }
 
   Future<QuerySnapshot<Map<String, dynamic>>> fetchSimplePage(
@@ -62,20 +65,56 @@ class ControlRoomService {
     return query.limit(pageSize).get();
   }
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchProducts() => _firestore
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchProducts({
+    int limit = pageSize,
+  }) => _firestore
       .collection('products')
       .orderBy('name')
-      .limit(pageSize)
+      .limit(limit)
       .snapshots();
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchProductScreenPage({
+    required String mode,
+  }) => _productScreenQuery(mode).limit(productScreenPageSize).snapshots();
+
+  Future<QuerySnapshot<Map<String, dynamic>>> fetchProductScreenPage({
+    required String mode,
+    DocumentSnapshot<Map<String, dynamic>>? after,
+  }) {
+    Query<Map<String, dynamic>> query = _productScreenQuery(mode);
+    if (after != null) query = query.startAfterDocument(after);
+    return query.limit(productScreenPageSize).get();
+  }
+
+  Query<Map<String, dynamic>> _productScreenQuery(String mode) {
+    final products = _firestore.collection('products');
+    return switch (mode) {
+      'featured' => products.where('isFeatured', isEqualTo: true),
+      'hidden' => products.where('isHide', isEqualTo: true),
+      _ => products.orderBy('name'),
+    };
+  }
+
+  Future<int> countProductScreen(String mode) async {
+    final products = _firestore.collection('products');
+    final query = switch (mode) {
+      'featured' => products.where('isFeatured', isEqualTo: true),
+      'hidden' => products.where('isHide', isEqualTo: true),
+      _ => products,
+    };
+    final result = await query.count().get();
+    return result.count ?? 0;
+  }
 
   Future<QuerySnapshot<Map<String, dynamic>>> fetchProductPage({
     DocumentSnapshot<Map<String, dynamic>>? after,
+    int limit = pageSize,
   }) {
     Query<Map<String, dynamic>> query = _firestore
         .collection('products')
         .orderBy('name');
     if (after != null) query = query.startAfterDocument(after);
-    return query.limit(pageSize).get();
+    return query.limit(limit).get();
   }
 
   String newBillNumber() => _firestore.collection('bills').doc().id;

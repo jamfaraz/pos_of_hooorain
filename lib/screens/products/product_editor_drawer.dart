@@ -563,6 +563,52 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
 
   Widget _gap([double h = 14]) => SizedBox(height: h);
 
+  // ---- Category / sub-category matching -----------------------------------
+  // Older products may store the category by name (or with different casing),
+  // so match by id first, then fall back to the name.
+
+  String _norm(String? value) => (value ?? '').trim().toLowerCase();
+
+  String? _resolveCategoryId(Iterable categories) {
+    final current = _categoryId;
+    if (current != null && current.isNotEmpty) {
+      for (final item in categories) {
+        if (item.id == current) return item.id as String;
+      }
+    }
+    final wanted = <String>{
+      _norm(current),
+      _norm(widget.product?.category),
+    }..remove('');
+    for (final item in categories) {
+      if (wanted.contains(_norm(item.name as String?))) {
+        return item.id as String;
+      }
+    }
+    return null;
+  }
+
+  /// Sub-category options, always including the product's saved value.
+  List<String> _subOptions(List<String> base) {
+    final options = [...base];
+    final current = _subcategory;
+    if (current != null &&
+        current.trim().isNotEmpty &&
+        !options.any((option) => _norm(option) == _norm(current))) {
+      options.add(current);
+    }
+    return options;
+  }
+
+  String? _matchSub(List<String> options) {
+    final current = _subcategory;
+    if (current == null || current.trim().isEmpty) return null;
+    for (final option in options) {
+      if (_norm(option) == _norm(current)) return option;
+    }
+    return null;
+  }
+
   ButtonStyle get _compactOutlined => OutlinedButton.styleFrom(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
   );
@@ -672,7 +718,6 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
   }
 
   Widget _buildBody() {
-    final product = widget.product;
     final hasVideo = _videoUrl.text.trim().isNotEmpty;
     return Form(
       key: _formKey,
@@ -683,15 +728,20 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
           _gap(),
           Obx(() {
             final categories = _controller.categories;
+            final resolvedId = _resolveCategoryId(categories);
+            if (resolvedId != null && resolvedId != _categoryId) {
+              _categoryId = resolvedId;
+            }
             final category = categories.firstWhereOrNull(
-              (item) => item.id == _categoryId,
+              (item) => item.id == resolvedId,
+            );
+            final subOptions = _subOptions(
+              category?.subcategories ?? const <String>[],
             );
             return _row2(
               _dropdown<String>(
                 label: 'Category',
-                value: categories.any((item) => item.id == _categoryId)
-                    ? _categoryId
-                    : null,
+                value: resolvedId,
                 items: categories
                     .map(
                       (item) => DropdownMenuItem(
@@ -708,10 +758,8 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
               ),
               _dropdown<String>(
                 label: 'Sub-category',
-                value: category?.subcategories.contains(_subcategory) == true
-                    ? _subcategory
-                    : null,
-                items: (category?.subcategories ?? const <String>[])
+                value: _matchSub(subOptions),
+                items: subOptions
                     .map(
                       (value) =>
                           DropdownMenuItem(value: value, child: Text(value)),
@@ -815,40 +863,28 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
           ],
 
           _sectionTitle('Video'),
-          if (product == null)
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    hasVideo
-                        ? 'Video uploaded and ready'
-                        : 'Upload a video from your device',
-                    style: TextStyle(
-                      color: _muted.withValues(alpha: 0.85),
-                      fontSize: 13,
-                    ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hasVideo
+                      ? 'Video uploaded and ready'
+                      : 'Upload a video from your device',
+                  style: TextStyle(
+                    color: _muted.withValues(alpha: 0.85),
+                    fontSize: 13,
                   ),
                 ),
-                _videoButton(hasVideo),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _videoUrl,
-                    keyboardType: TextInputType.url,
-                    onChanged: (_) => setState(() {}),
-                    style: _inputStyle,
-                    cursorColor: _primary,
-                    decoration: _decoration(hint: 'Paste a video link'),
-                  ),
+              ),
+              if (hasVideo && !_uploadingVideo)
+                TextButton(
+                  onPressed: () => setState(() => _videoUrl.clear()),
+                  style: TextButton.styleFrom(foregroundColor: _errorColor),
+                  child: const Text('Remove'),
                 ),
-                const SizedBox(width: 10),
-                _videoButton(hasVideo),
-              ],
-            ),
+              _videoButton(hasVideo),
+            ],
+          ),
           if (_uploadingVideo) ...[
             const SizedBox(height: 10),
             ClipRRect(

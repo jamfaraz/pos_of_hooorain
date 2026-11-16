@@ -6,9 +6,10 @@ import '../services/control_room_service.dart';
 class ProductManagementBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<ControlRoomService>(() => ControlRoomService());
+    Get.lazyPut<ControlRoomService>(() => ControlRoomService(), fenix: true);
     Get.lazyPut<ProductManagementController>(
       () => ProductManagementController(Get.find<ControlRoomService>()),
+      fenix: true,
     );
   }
 }

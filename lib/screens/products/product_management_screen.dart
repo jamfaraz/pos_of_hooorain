@@ -24,8 +24,7 @@ const double _wRating = 98;
 const double _wFeatured = 86;
 const double _wVisible = 78;
 const double _wActions = 128;
-const double _kRowHeight = 58;
-const double _kHeaderHeight = 38;
+const double _kHeaderHeight = 42;
 const double _kProductMin = 260;
 const double _kSidePad = 16;
 
@@ -49,9 +48,7 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
 
   @override
   Widget build(BuildContext context) {
-    if (initialMode != 'all' && controller.mode.value != initialMode) {
-      controller.mode.value = initialMode;
-    }
+    controller.configureScreen(initialMode);
     return Obx(() {
       final currentMode = initialMode == 'all'
           ? controller.mode.value
@@ -61,52 +58,46 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
         'hidden' => 'Hidden products',
         _ => 'Products',
       };
-      final products = controller.filteredProducts;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PageHeader(
-            title: title,
-            subtitle:
-                'Every product has a home price and a shop price. Shop owners see the shop price in the app.',
-            bottomSpacing: 10,
-            titleFontSize: 26,
-            actions: [
-              if (initialMode == 'featured')
-                AppButton(
-                  label: 'Feature a product',
-                  icon: const Icon(PhosphorIconsRegular.plus),
-                  onPressed: () => _featureProduct(context),
-                ),
-              if (initialMode == 'all')
-                AppButton(
-                  label: 'Categories',
-                  style: AppButtonStyle.ghost,
-                  icon: const Icon(PhosphorIconsRegular.storefront),
-                  onPressed: () => Get.toNamed('/categories'),
-                ),
-              if (initialMode == 'all')
-                AppButton(
-                  label: 'Add product',
-                  icon: const Icon(PhosphorIconsRegular.plus),
-                  onPressed: () => ProductEditorDrawer.show(null),
-                ),
-            ],
-          ),
-          Expanded(
-            child: Card(
+      final products = controller.filteredProductsFor(currentMode);
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PageHeader(
+              title: title,
+              subtitle:
+                  'Every product has a home price and a shop price. Shop owners see the shop price in the app.',
+              bottomSpacing: 10,
+              titleFontSize: 24,
+              actions: [
+                if (initialMode == 'all')
+                  AppButton(
+                    label: 'Categories',
+                    style: AppButtonStyle.ghost,
+                    icon: const Icon(PhosphorIconsRegular.storefront),
+                    onPressed: () => Get.toNamed('/categories'),
+                  ),
+                if (initialMode == 'all')
+                  AppButton(
+                    label: 'Add product',
+                    icon: const Icon(PhosphorIconsRegular.plus),
+                    onPressed: () => ProductEditorDrawer.show(null),
+                  ),
+              ],
+            ),
+            Card(
               clipBehavior: Clip.antiAlias,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _toolbar(context, products.length),
                   Divider(height: 1, color: Theme.of(context).dividerColor),
-                  Expanded(child: _content(context, products)),
+                  _content(context, products),
                 ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     });
   }
@@ -132,7 +123,7 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                 height: 40,
                 child: TextField(
                   onChanged: (value) => controller.search.value = value,
-                  style: theme.textTheme.bodyMedium,
+                  style: theme.textTheme.bodySmall,
                   decoration: const InputDecoration(
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 10),
@@ -149,7 +140,7 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
           const Spacer(),
           Text(
             '$shown ${shown == 1 ? 'product' : 'products'}',
-            style: theme.textTheme.labelMedium?.copyWith(
+            style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
@@ -172,19 +163,29 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _modeTab(context, 'all', 'All', controller.products.length),
+          _modeTab(context, 'all', 'All', controller.productCounts['all'] ?? 0),
           _modeTab(
             context,
             'featured',
             'Featured',
-            controller.products.where((p) => p.featured).length,
+            controller.productCounts['featured'] ?? 0,
           ),
           _modeTab(
             context,
             'hidden',
             'Hidden',
-            controller.products.where((p) => !p.active).length,
+            controller.productCounts['hidden'] ?? 0,
           ),
+          if (controller.productCountsError.value != null)
+            IconButton(
+              tooltip: 'Product counts failed to load. Retry',
+              onPressed: controller.refreshProductCounts,
+              icon: Icon(
+                PhosphorIconsRegular.arrowClockwise,
+                size: 15,
+                color: theme.colorScheme.error,
+              ),
+            ),
         ],
       ),
     );
@@ -197,10 +198,10 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => controller.mode.value = mode,
+        onTap: () => controller.setMode(mode),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
           decoration: BoxDecoration(
             color: selected ? theme.colorScheme.surface : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
@@ -222,11 +223,12 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
             children: [
               Text(
                 label,
-                style: theme.textTheme.labelLarge?.copyWith(
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: selected
                       ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  fontSize: 12,
                 ),
               ),
               const SizedBox(width: 7),
@@ -245,6 +247,7 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w800,
+                    fontSize: 10,
                   ),
                 ),
               ),
@@ -270,24 +273,28 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
       );
     }
     if (products.isEmpty) {
-      return EmptyState(
-        title: 'No products found',
-        message: controller.search.value.isEmpty
-            ? 'Products will appear here when added.'
-            : 'Try a different product name or SKU.',
-        actionLabel: initialMode == 'all' ? 'Add product' : null,
-        onAction: initialMode == 'all'
-            ? () => ProductEditorDrawer.show(null)
-            : null,
+      return Column(
+        children: [
+          EmptyState(
+            title: 'No products found',
+            message: controller.search.value.isEmpty
+                ? 'Products will appear here when added.'
+                : 'Try a different product name or SKU.',
+            actionLabel: initialMode == 'all' ? 'Add product' : null,
+            onAction: initialMode == 'all'
+                ? () => ProductEditorDrawer.show(null)
+                : null,
+          ),
+          if (controller.canLoadMore.value ||
+              controller.loadMoreError.value != null)
+            _footer(context),
+        ],
       );
     }
     final showFooter =
         controller.canLoadMore.value || controller.loadMoreError.value != null;
     return Column(
-      children: [
-        Expanded(child: _table(context, products)),
-        if (showFooter) _footer(context),
-      ],
+      children: [_table(context, products), if (showFooter) _footer(context)],
     );
   }
 
@@ -359,13 +366,10 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
           child: Column(
             children: [
               _header(context),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: products.length,
-                  itemExtent: _kRowHeight,
-                  itemBuilder: (context, index) =>
-                      _row(context, products[index]),
-                ),
+              Column(
+                children: [
+                  for (final product in products) _row(context, product),
+                ],
               ),
             ],
           ),
@@ -397,18 +401,23 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
 
   Widget _header(BuildContext context) {
     final theme = Theme.of(context);
-    final style = theme.textTheme.labelMedium?.copyWith(
+    final style = theme.textTheme.labelSmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
       fontWeight: FontWeight.w700,
+      fontSize: 11,
     );
-    Widget h(String text, double width, {bool right = false, bool center = false}) =>
-        _cell(
-          width,
-          Text(text, maxLines: 1, style: style),
-          alignment: right
-              ? Alignment.centerRight
-              : (center ? Alignment.center : Alignment.centerLeft),
-        );
+    Widget h(
+      String text,
+      double width, {
+      bool right = false,
+      bool center = false,
+    }) => _cell(
+      width,
+      Text(text, maxLines: 1, style: style),
+      alignment: right
+          ? Alignment.centerRight
+          : (center ? Alignment.center : Alignment.centerLeft),
+    );
     return Container(
       height: _kHeaderHeight,
       padding: const EdgeInsets.symmetric(horizontal: _kSidePad),
@@ -444,7 +453,7 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
     final theme = Theme.of(context);
     return _HoverRow(
       builder: (hovering) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: _kSidePad),
+        padding: const EdgeInsets.symmetric(horizontal: _kSidePad, vertical: 6),
         decoration: BoxDecoration(
           color: hovering
               ? theme.colorScheme.primary.withValues(alpha: 0.045)
@@ -461,8 +470,11 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                 ),
               ),
             ),
-            _cell(_wMrp, _mrpCell(context, product),
-                alignment: Alignment.centerRight),
+            _cell(
+              _wMrp,
+              _mrpCell(context, product),
+              alignment: Alignment.centerRight,
+            ),
             _cell(
               _wHome,
               _priceCell(context, product.homePrice, emphasized: true),
@@ -473,8 +485,11 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
               _priceCell(context, product.shopPrice, emphasized: true),
               alignment: Alignment.centerRight,
             ),
-            _cell(_wStock, _stockCell(context, product),
-                alignment: Alignment.centerRight),
+            _cell(
+              _wStock,
+              _stockCell(context, product),
+              alignment: Alignment.centerRight,
+            ),
             _cell(_wBulk, _bulkCell(context, product)),
             _cell(_wRating, _ratingCell(context, product)),
             _cell(
@@ -592,8 +607,9 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                       product.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
+                      style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w700,
+                        fontSize: 13,
                       ),
                     ),
                   ),
@@ -624,8 +640,9 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                 categoryText.isEmpty ? 'Uncategorized' : categoryText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -649,9 +666,10 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
     return Text(
       Money.rs(product.mrp),
       maxLines: 1,
-      style: theme.textTheme.bodyMedium?.copyWith(
+      style: theme.textTheme.bodySmall?.copyWith(
         color: theme.colorScheme.onSurfaceVariant,
         fontWeight: FontWeight.w500,
+        fontSize: 12,
         decoration: discounted ? TextDecoration.lineThrough : null,
         decorationColor: theme.colorScheme.onSurfaceVariant.withValues(
           alpha: 0.6,
@@ -669,11 +687,12 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
     return Text(
       Money.rs(price),
       maxLines: 1,
-      style: theme.textTheme.bodyMedium?.copyWith(
+      style: theme.textTheme.bodySmall?.copyWith(
         color: emphasized
             ? theme.colorScheme.onSurface
             : theme.colorScheme.onSurfaceVariant,
         fontWeight: emphasized ? FontWeight.w800 : FontWeight.w500,
+        fontSize: 12,
       ),
     );
   }
@@ -688,8 +707,9 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
     if (!out && !low) {
       return Text(
         '${product.stock}',
-        style: theme.textTheme.bodyMedium?.copyWith(
+        style: theme.textTheme.bodySmall?.copyWith(
           fontWeight: FontWeight.w600,
+          fontSize: 12,
         ),
       );
     }
@@ -795,8 +815,8 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
       color: theme.colorScheme.onSurfaceVariant,
     );
     return Container(
-      width: 40,
-      height: 40,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
@@ -808,8 +828,8 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
             ? Center(child: fallback)
             : Image.network(
                 imageUrl,
-                width: 40,
-                height: 40,
+                width: 42,
+                height: 42,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Center(child: fallback),
               ),
@@ -896,34 +916,6 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
     } catch (exception) {
       Get.snackbar('Could not update product', exception.toString());
     }
-  }
-
-  Future<void> _featureProduct(BuildContext context) async {
-    final candidates = controller.products
-        .where((product) => !product.featured && product.active)
-        .toList();
-    if (candidates.isEmpty) {
-      Get.snackbar(
-        'No products available',
-        'All visible products are already featured.',
-      );
-      return;
-    }
-    final selected = await showDialog<ProductRecord>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Feature a product'),
-        children: candidates
-            .map(
-              (product) => SimpleDialogOption(
-                onPressed: () => Navigator.of(context).pop(product),
-                child: Text(product.name),
-              ),
-            )
-            .toList(),
-      ),
-    );
-    if (selected != null) await controller.toggleFeatured(selected, true);
   }
 }
 

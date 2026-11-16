@@ -32,35 +32,33 @@ class CategoryManagementScreen extends GetView<CategoryManagementController> {
       );
     }
     if (selected != null) return _categoryProducts(context, selected);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageHeader(
-          title: 'Categories',
-          subtitle: 'Organize products with categories and sub-categories.',
-          actions: [
-            AppButton(
-              label: 'Add category',
-              icon: const Icon(PhosphorIconsRegular.plus),
-              onPressed: () => _editCategory(context),
-            ),
-          ],
-        ),
-        if (controller.error.value != null)
-          ErrorRetryWidget(
-            errorMessage: controller.error.value!,
-            onRetry: controller.reload,
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PageHeader(
+            title: 'Categories',
+            subtitle: 'Organize products with categories and sub-categories.',
+            actions: [
+              AppButton(
+                label: 'Add category',
+                icon: const Icon(PhosphorIconsRegular.plus),
+                onPressed: () => _editCategory(context),
+              ),
+            ],
           ),
-        if (controller.categories.isEmpty)
-          const Expanded(
-            child: EmptyState(
+          if (controller.error.value != null)
+            ErrorRetryWidget(
+              errorMessage: controller.error.value!,
+              onRetry: controller.reload,
+            ),
+          if (controller.categories.isEmpty)
+            const EmptyState(
               title: 'No categories yet',
               message: 'Create a category to start organizing products.',
-            ),
-          )
-        else
-          Expanded(
-            child: ListView(
+            )
+          else
+            Column(
               children: [
                 GridView.builder(
                   shrinkWrap: true,
@@ -192,128 +190,129 @@ class CategoryManagementScreen extends GetView<CategoryManagementController> {
                   ),
               ],
             ),
-          ),
-      ],
+        ],
+      ),
     );
   });
 
   Widget _categoryProducts(BuildContext context, CategoryRecord category) {
     final products = controller.selectedProducts;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        PageHeader(
-          title: category.name,
-          subtitle: '${products.length} products in this category.',
-          actions: [
-            AppButton(
-              label: 'Back to categories',
-              style: AppButtonStyle.ghost,
-              onPressed: () => controller.selected.value = null,
-            ),
-            AppButton(
-              label: 'Add product here',
-              icon: const Icon(PhosphorIconsRegular.plus),
-              onPressed: () =>
-                  ProductEditorDrawer.show(null, categoryId: category.id),
-            ),
-          ],
-        ),
-        if (category.subcategories.isNotEmpty)
-          Wrap(
-            spacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('All'),
-                selected: controller.selectedSubcategory.value.isEmpty,
-                onSelected: (_) => controller.selectedSubcategory.value = '',
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PageHeader(
+            title: category.name,
+            subtitle: '${products.length} products in this category.',
+            actions: [
+              AppButton(
+                label: 'Back to categories',
+                style: AppButtonStyle.ghost,
+                onPressed: () => controller.selected.value = null,
               ),
-              ...category.subcategories.map(
-                (subcategory) => ChoiceChip(
-                  label: Text(subcategory),
-                  selected: controller.selectedSubcategory.value == subcategory,
-                  onSelected: (_) =>
-                      controller.selectedSubcategory.value = subcategory,
-                ),
+              AppButton(
+                label: 'Add product here',
+                icon: const Icon(PhosphorIconsRegular.plus),
+                onPressed: () =>
+                    ProductEditorDrawer.show(null, categoryId: category.id),
               ),
             ],
           ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: products.isEmpty
-              ? EmptyState(
-                  title: 'No products in this category',
-                  message:
-                      'Add a product here or select a different sub-category.',
-                  actionLabel: 'Add product here',
-                  onAction: () =>
-                      ProductEditorDrawer.show(null, categoryId: category.id),
-                )
-              : GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 280,
-                    mainAxisExtent: 235,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, index) {
-                    final product = products[index];
-                    return Card(
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: product.images.isEmpty
-                                  ? _categoryPlaceholder(context)
-                                  : Image.network(
-                                      product.images.first,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) =>
-                                          _categoryPlaceholder(context),
-                                    ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  product.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                Text(
-                                  '${product.subcategory} · ${product.stock} in stock',
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                                const SizedBox(height: 5),
-                                Text(
-                                  Money.rs(product.homePrice),
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+          if (category.subcategories.isNotEmpty)
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('All'),
+                  selected: controller.selectedSubcategory.value.isEmpty,
+                  onSelected: (_) => controller.selectedSubcategory.value = '',
                 ),
-        ),
-      ],
+                ...category.subcategories.map(
+                  (subcategory) => ChoiceChip(
+                    label: Text(subcategory),
+                    selected:
+                        controller.selectedSubcategory.value == subcategory,
+                    onSelected: (_) =>
+                        controller.selectedSubcategory.value = subcategory,
+                  ),
+                ),
+              ],
+            ),
+          const SizedBox(height: 16),
+          if (products.isEmpty)
+            EmptyState(
+              title: 'No products in this category',
+              message: 'Add a product here or select a different sub-category.',
+              actionLabel: 'Add product here',
+              onAction: () =>
+                  ProductEditorDrawer.show(null, categoryId: category.id),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 280,
+                mainAxisExtent: 235,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+              ),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                return Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: product.images.isEmpty
+                              ? _categoryPlaceholder(context)
+                              : Image.network(
+                                  product.images.first,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) =>
+                                      _categoryPlaceholder(context),
+                                ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              '${product.subcategory} · ${product.stock} in stock',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              Money.rs(product.homePrice),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
     );
   }
 
