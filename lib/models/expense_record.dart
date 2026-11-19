@@ -29,6 +29,7 @@ class ExpenseRecord {
     required this.amount,
     this.paidBy = 'Cash',
     required this.createdAt,
+    this.source = '',
   });
 
   final String? id;
@@ -37,6 +38,18 @@ class ExpenseRecord {
   final double amount;
   final String paidBy;
   final DateTime createdAt;
+
+  /// '' for manual entries. 'rider_salary' for rows created when a rider's
+  /// salary is marked paid.
+  final String source;
+
+  /// Rows created by the system (rider salary payments). They are managed from
+  /// the Riders screen and are read-only here, so profit reports stay correct.
+  bool get isAuto =>
+      source == 'rider_salary' ||
+      (category == 'Salaries' &&
+          paidBy == 'Admin' &&
+          note.startsWith('Salary payment for'));
 
   /// Accepts both new and old field names so existing documents keep working.
   factory ExpenseRecord.fromMap(Map<String, dynamic> map, {String? id}) {
@@ -58,6 +71,7 @@ class ExpenseRecord {
       amount: number(map['amount'] ?? map['a']),
       paidBy: '${map['paidBy'] ?? map['method'] ?? map['by'] ?? 'Cash'}',
       createdAt: date(map['createdAt'] ?? map['date'] ?? map['d']),
+      source: '${map['source'] ?? ''}',
     );
   }
 
@@ -68,6 +82,7 @@ class ExpenseRecord {
     'paidBy': paidBy,
     'createdAt': Timestamp.fromDate(createdAt),
     'updatedAt': FieldValue.serverTimestamp(),
+    if (source.isNotEmpty) 'source': source,
   };
 
   ExpenseRecord copyWith({
@@ -76,6 +91,7 @@ class ExpenseRecord {
     double? amount,
     String? paidBy,
     DateTime? createdAt,
+    String? source,
   }) => ExpenseRecord(
     id: id,
     category: category ?? this.category,
@@ -83,5 +99,6 @@ class ExpenseRecord {
     amount: amount ?? this.amount,
     paidBy: paidBy ?? this.paidBy,
     createdAt: createdAt ?? this.createdAt,
+    source: source ?? this.source,
   );
 }

@@ -25,9 +25,28 @@ void main() {
       expect(product.stock, 8);
       expect(product.featured, isTrue);
       expect(product.active, isFalse);
+      expect(product.showForHomeUsers, isTrue);
+      expect(product.showForShopOwners, isTrue);
       expect(product.tiers.single['qty'], 10);
       expect(product.tiers.single['homePrice'], 110);
     });
+
+    test(
+      'customer panel visibility defaults on and persists independently',
+      () {
+        final legacy = ProductRecord.fromMap({'name': 'Rice'});
+        final product = legacy.copyWith(
+          showForHomeUsers: false,
+          showForShopOwners: true,
+        );
+        final restored = ProductRecord.fromMap(product.toMap());
+
+        expect(restored.showForHomeUsers, isFalse);
+        expect(restored.showForShopOwners, isTrue);
+        expect(restored.isAvailableForCustomerType('home'), isFalse);
+        expect(restored.isAvailableForCustomerType('shop'), isTrue);
+      },
+    );
   });
 
   group('unitPrice', () {

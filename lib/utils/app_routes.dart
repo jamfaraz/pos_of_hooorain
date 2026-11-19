@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../bindings/setup_binding.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/common/control_room_placeholder.dart';
 import '../screens/dashboard/dashboard_screen.dart';
@@ -16,6 +17,7 @@ import '../screens/offers/offers_screen.dart';
 import '../screens/riders/riders_screen.dart';
 import '../screens/orders/order_detail_screen.dart';
 import '../screens/expenses/expenses_screen.dart';
+import '../screens/setting/store_setting_screen.dart';
 import 'admin_route_guard.dart';
 import 'auth_gate.dart';
 import '../widgets/app_shell.dart';
@@ -82,6 +84,7 @@ abstract final class AppRoutes {
     _protected('/offers', const OffersScreen(), binding: OffersBinding()),
     _protected('/riders', const RidersScreen(), binding: RidersBinding()),
     _protected('/expenses', const ExpensesScreen(), binding: ExpenseBinding()),
+    _protected('/store-setup', const StoreSetupScreen(), binding: StoreSetupBinding()),
     _protected(
       '/item-profit',
       const ItemProfitScreen(),

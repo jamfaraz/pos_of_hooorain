@@ -12,41 +12,61 @@ class ProductManagementController extends GetxController {
   ProductManagementController(this._service);
 
   final ControlRoomService _service;
-  final products = <ProductRecord>[].obs;
+  final _productScreens = <String, _ProductScreenState>{
+    'all': _ProductScreenState(),
+    'featured': _ProductScreenState(),
+    'hidden': _ProductScreenState(),
+  };
   final categories = <CategoryRecord>[].obs;
   final offers = <OfferRecord>[].obs;
-  final loading = true.obs;
-  final loadingMore = false.obs;
-  final canLoadMore = false.obs;
-  final error = RxnString();
-  final loadMoreError = RxnString();
   final productCounts = <String, int>{'all': 0, 'featured': 0, 'hidden': 0}.obs;
   final productCountsError = RxnString();
   final search = ''.obs;
   final mode = 'all'.obs;
   bool _countsInitialized = false;
-  bool _hasLoadedMoreProducts = false;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _productsSub;
+  bool _relatedDataLoaded = false;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _categoriesSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _offersSub;
-  DocumentSnapshot<Map<String, dynamic>>? _lastProductDoc;
+
+  RxList<ProductRecord> productsFor(String selectedMode) =>
+      _screen(selectedMode).products;
+
+  RxBool loadingFor(String selectedMode) => _screen(selectedMode).loading;
+
+  RxBool loadingMoreFor(String selectedMode) =>
+      _screen(selectedMode).loadingMore;
+
+  RxBool canLoadMoreFor(String selectedMode) =>
+      _screen(selectedMode).canLoadMore;
+
+  RxnString errorFor(String selectedMode) => _screen(selectedMode).error;
+
+  RxnString loadMoreErrorFor(String selectedMode) =>
+      _screen(selectedMode).loadMoreError;
+
+  RxList<ProductRecord> get products => productsFor(mode.value);
+  RxBool get loading => loadingFor(mode.value);
+  RxBool get loadingMore => loadingMoreFor(mode.value);
+  RxBool get canLoadMore => canLoadMoreFor(mode.value);
+  RxnString get error => errorFor(mode.value);
+  RxnString get loadMoreError => loadMoreErrorFor(mode.value);
 
   @override
   void onInit() {
     super.onInit();
-    reload();
+    _watchRelatedData();
   }
 
-  void reload() {
-    loading.value = true;
-    error.value = null;
-    loadMoreError.value = null;
-    _hasLoadedMoreProducts = false;
-    _productsSub?.cancel();
-    _categoriesSub?.cancel();
-    _offersSub?.cancel();
-    _productsSub = _service
-        .watchProductScreenPage(mode: mode.value)
+  void reload({String? selectedMode}) {
+    final screenMode = selectedMode ?? mode.value;
+    final screen = _screen(screenMode);
+    screen.loading.value = true;
+    screen.error.value = null;
+    screen.loadMoreError.value = null;
+    screen.hasLoadedMoreProducts = false;
+    screen.productsSub?.cancel();
+    screen.productsSub = _service
+        .watchProductScreenPage(mode: screenMode)
         .listen(
           (snapshot) {
             final firstPage = snapshot.docs
@@ -56,8 +76,8 @@ class ProductManagementController extends GetxController {
                 .map((product) => product.id)
                 .whereType<String>()
                 .toSet();
-            final laterPages = _hasLoadedMoreProducts
-                ? products
+            final laterPages = screen.hasLoadedMoreProducts
+                ? screen.products
                       .where(
                         (product) =>
                             product.id == null ||
@@ -65,61 +85,84 @@ class ProductManagementController extends GetxController {
                       )
                       .toList()
                 : <ProductRecord>[];
-            products.assignAll([...firstPage, ...laterPages]);
-            if (!_hasLoadedMoreProducts) {
-              _lastProductDoc = snapshot.docs.isEmpty
+            screen.products.assignAll([...firstPage, ...laterPages]);
+            if (!screen.hasLoadedMoreProducts) {
+              screen.lastProductDoc = snapshot.docs.isEmpty
                   ? null
                   : snapshot.docs.last;
-              canLoadMore.value =
+              screen.canLoadMore.value =
                   snapshot.docs.length ==
                   ControlRoomService.productScreenPageSize;
             }
-            loading.value = false;
+            screen.loading.value = false;
           },
           onError: (Object exception) {
-            error.value = exception.toString();
-            loading.value = false;
+            screen.error.value = exception.toString();
+            screen.loading.value = false;
           },
         );
     if (!_countsInitialized) {
       _countsInitialized = true;
       unawaited(refreshProductCounts());
     }
-    _categoriesSub = _service.watchCategories().listen((snapshot) {
-      categories.assignAll(
-        snapshot.docs.map(
-          (doc) => CategoryRecord.fromMap(doc.data(), id: doc.id),
-        ),
-      );
-    }, onError: (Object exception) => error.value = exception.toString());
-    _offersSub = _service.watchOffers().listen((snapshot) {
-      offers.assignAll(
-        snapshot.docs.map((doc) => OfferRecord.fromMap(doc.data(), id: doc.id)),
-      );
-    }, onError: (Object exception) => error.value = exception.toString());
   }
 
-  Future<void> loadMore() async {
-    final cursor = _lastProductDoc;
-    if (cursor == null || loadingMore.value) return;
-    loadingMore.value = true;
-    loadMoreError.value = null;
+  void _watchRelatedData() {
+    if (_relatedDataLoaded) return;
+    _relatedDataLoaded = true;
+    _categoriesSub = _service.watchCategories().listen(
+      (snapshot) {
+        categories.assignAll(
+          snapshot.docs.map(
+            (doc) => CategoryRecord.fromMap(doc.data(), id: doc.id),
+          ),
+        );
+      },
+      onError: (Object exception) {
+        error.value = exception.toString();
+      },
+    );
+    _offersSub = _service.watchOffers().listen(
+      (snapshot) {
+        offers.assignAll(
+          snapshot.docs.map(
+            (doc) => OfferRecord.fromMap(doc.data(), id: doc.id),
+          ),
+        );
+      },
+      onError: (Object exception) {
+        error.value = exception.toString();
+      },
+    );
+  }
+
+  Future<void> loadMore({String? selectedMode}) async {
+    final screenMode = selectedMode ?? mode.value;
+    final screen = _screen(screenMode);
+    final cursor = screen.lastProductDoc;
+    if (cursor == null ||
+        !screen.canLoadMore.value ||
+        screen.loadingMore.value) {
+      return;
+    }
+    screen.loadingMore.value = true;
+    screen.loadMoreError.value = null;
     try {
       final page = await _service.fetchProductScreenPage(
-        mode: mode.value,
+        mode: screenMode,
         after: cursor,
       );
-      products.addAll(
+      screen.products.addAll(
         page.docs.map((doc) => ProductRecord.fromMap(doc.data(), id: doc.id)),
       );
-      if (page.docs.isNotEmpty) _hasLoadedMoreProducts = true;
-      _lastProductDoc = page.docs.isEmpty ? null : page.docs.last;
-      canLoadMore.value =
+      if (page.docs.isNotEmpty) screen.hasLoadedMoreProducts = true;
+      screen.lastProductDoc = page.docs.isEmpty ? null : page.docs.last;
+      screen.canLoadMore.value =
           page.docs.length == ControlRoomService.productScreenPageSize;
     } catch (exception) {
-      loadMoreError.value = exception.toString();
+      screen.loadMoreError.value = exception.toString();
     } finally {
-      loadingMore.value = false;
+      screen.loadingMore.value = false;
     }
   }
 
@@ -127,31 +170,24 @@ class ProductManagementController extends GetxController {
 
   List<ProductRecord> filteredProductsFor(String selectedMode) {
     final needle = search.value.trim().toLowerCase();
-    return products.where((product) {
-      final matchesMode = switch (selectedMode) {
-        'featured' => product.featured,
-        'hidden' => !product.active,
-        _ => true,
-      };
+    return productsFor(selectedMode).where((product) {
       final matchesSearch =
           needle.isEmpty ||
           product.name.toLowerCase().contains(needle) ||
           product.sku.toLowerCase().contains(needle);
-      return matchesMode && matchesSearch;
+      return matchesSearch;
     }).toList();
   }
 
   void configureScreen(String selectedMode) {
-    if (mode.value == selectedMode) return;
-    mode.value = selectedMode;
-    products.clear();
-    _lastProductDoc = null;
-    _hasLoadedMoreProducts = false;
-    canLoadMore.value = false;
-    reload();
+    final screen = _screen(selectedMode);
+    if (screen.productsSub == null) reload(selectedMode: selectedMode);
   }
 
-  void setMode(String selectedMode) => configureScreen(selectedMode);
+  void setMode(String selectedMode) {
+    mode.value = selectedMode;
+    configureScreen(selectedMode);
+  }
 
   Future<void> refreshProductCounts() async {
     productCountsError.value = null;
@@ -217,9 +253,27 @@ class ProductManagementController extends GetxController {
 
   @override
   void onClose() {
-    _productsSub?.cancel();
+    for (final screen in _productScreens.values) {
+      screen.productsSub?.cancel();
+    }
     _categoriesSub?.cancel();
     _offersSub?.cancel();
     super.onClose();
   }
+
+  _ProductScreenState _screen(String selectedMode) =>
+      _productScreens[selectedMode] ??
+      (throw ArgumentError.value(selectedMode, 'selectedMode'));
+}
+
+class _ProductScreenState {
+  final products = <ProductRecord>[].obs;
+  final loading = true.obs;
+  final loadingMore = false.obs;
+  final canLoadMore = false.obs;
+  final error = RxnString();
+  final loadMoreError = RxnString();
+  bool hasLoadedMoreProducts = false;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? productsSub;
+  DocumentSnapshot<Map<String, dynamic>>? lastProductDoc;
 }

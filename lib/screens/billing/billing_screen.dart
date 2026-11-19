@@ -253,21 +253,31 @@ class _ProductPicker extends StatelessWidget {
           final products = controller.filteredProducts;
           final shopCustomer = controller.customerType.value == 'shop';
           final availableOffers = controller.offers.toList();
+          final cartLinesByProduct = {
+            for (final line in controller.cart.toList()) line.productId: line,
+          };
           final isSaving = controller.saving.value;
           if (products.isEmpty) {
+            final audienceProducts = controller.productsForCustomerType;
             final noStockProducts =
-                controller.products.isNotEmpty &&
-                controller.products.every((product) => !product.inStock);
+                audienceProducts.isNotEmpty &&
+                audienceProducts.every((product) => !product.inStock);
+            final noAudienceProducts =
+                controller.products.isNotEmpty && audienceProducts.isEmpty;
             return Column(
               children: [
                 EmptyState(
                   title: controller.products.isEmpty
                       ? 'No products available'
+                      : noAudienceProducts
+                      ? 'No products for ${shopCustomer ? 'shop owners' : 'home users'}'
                       : noStockProducts
                       ? 'No in-stock products'
                       : 'No products match',
                   message: controller.products.isEmpty
                       ? 'Active products will appear here.'
+                      : noAudienceProducts
+                      ? 'Enable this customer panel in a product’s availability settings.'
                       : noStockProducts
                       ? 'Products will appear here when stock is added.'
                       : 'Try a different product name, SKU, or category.',
@@ -305,17 +315,26 @@ class _ProductPicker extends StatelessWidget {
                     itemCount: products.length,
                     itemBuilder: (context, index) {
                       final product = products[index];
+                      final cartLine = cartLinesByProduct[product.id];
+                      final quantityInBill = cartLine?.qty ?? 0;
                       return _ProductCard(
                         product: product,
                         price: unitPrice(
                           product: product,
                           shopCustomer: shopCustomer,
-                          quantity: 1,
+                          quantity: quantityInBill > 0 ? quantityInBill : 1,
                           offers: availableOffers,
                         ),
-                        onTap: product.inStock && !isSaving
+                        quantityInBill: quantityInBill,
+                        onTap: quantityInBill < product.stock && !isSaving
                             ? () => controller.addProduct(product)
                             : null,
+                        onDecrease: cartLine == null || isSaving
+                            ? null
+                            : () => controller.changeQuantity(
+                                cartLine,
+                                quantityInBill - 1,
+                              ),
                       );
                     },
                   ),
@@ -389,12 +408,16 @@ class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
     required this.price,
+    required this.quantityInBill,
     required this.onTap,
+    required this.onDecrease,
   });
 
   final ProductRecord product;
   final double price;
+  final int quantityInBill;
   final VoidCallback? onTap;
+  final VoidCallback? onDecrease;
 
   int? get _bulkQuantity {
     final quantities = product.tiers
@@ -439,48 +462,32 @@ class _ProductCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          theme.colorScheme.surfaceContainerLow,
-                          theme.colorScheme.surface,
-                        ],
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(9),
-                      child: imageUrl?.isNotEmpty == true
-                          ? Image.network(
-                              imageUrl!,
-                              width: double.infinity,
-                              height: double.infinity,
-                              fit: BoxFit.contain,
-                              alignment: Alignment.center,
-                              filterQuality: FilterQuality.medium,
-                              loadingBuilder: (context, child, progress) {
-                                if (progress == null) return child;
-                                return Center(
-                                  child: SizedBox.square(
-                                    dimension: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      value: progress.expectedTotalBytes == null
-                                          ? null
-                                          : progress.cumulativeBytesLoaded /
-                                                progress.expectedTotalBytes!,
-                                    ),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (_, _, _) =>
-                                  _imagePlaceholder(context),
-                            )
-                          : _imagePlaceholder(context),
-                    ),
-                  ),
+                  imageUrl?.isNotEmpty == true
+                      ? Image.network(
+                          imageUrl!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.center,
+                          filterQuality: FilterQuality.high,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return Center(
+                              child: SizedBox.square(
+                                dimension: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  value: progress.expectedTotalBytes == null
+                                      ? null
+                                      : progress.cumulativeBytesLoaded /
+                                            progress.expectedTotalBytes!,
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (_, _, _) => _imagePlaceholder(context),
+                        )
+                      : _imagePlaceholder(context),
                   if (bulkQuantity != null)
                     Positioned(
                       top: 9,
@@ -504,13 +511,41 @@ class _ProductCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (quantityInBill > 0)
+                    Positioned(
+                      top: 9,
+                      right: 9,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          borderRadius: BorderRadius.circular(9),
+                        ),
+                        child: Text(
+                          '$quantityInBill IN BILL',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: theme.colorScheme.onPrimary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
                   Positioned(
                     left: 8,
                     bottom: 8,
                     child: _stockBadge(
                       context,
-                      '${product.stock} in stock',
-                      theme.colorScheme.onSurfaceVariant,
+                      product.stock <= 0
+                          ? 'OUT OF STOCK'
+                          : '${product.stock} in stock',
+                      product.stock <= 0
+                          ? theme.colorScheme.onErrorContainer
+                          : theme.colorScheme.onSurfaceVariant,
+                      isOutOfStock: product.stock <= 0,
                     ),
                   ),
                 ],
@@ -551,25 +586,91 @@ class _ProductCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      SizedBox(
-                        height: 32,
-                        child: FilledButton.icon(
-                          onPressed: onTap,
-                          icon: const Icon(PhosphorIconsRegular.plus, size: 15),
-                          label: const Text('Add'),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            textStyle: theme.textTheme.labelSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
+                      if (quantityInBill > 0)
+                        Container(
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Remove one',
+                                onPressed: onDecrease,
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 28,
+                                  height: 32,
+                                ),
+                                style: IconButton.styleFrom(
+                                  foregroundColor: theme.colorScheme.onPrimary,
+                                  backgroundColor: Colors.transparent,
+                                  side: BorderSide.none,
+                                  shape: const CircleBorder(),
+                                ),
+                                icon: const Icon(
+                                  PhosphorIconsRegular.minus,
+                                  size: 14,
+                                ),
+                              ),
+                              Text(
+                                '$quantityInBill',
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: theme.colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Add one',
+                                onPressed: onTap,
+                                padding: EdgeInsets.zero,
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 28,
+                                  height: 32,
+                                ),
+                                style: IconButton.styleFrom(
+                                  foregroundColor: theme.colorScheme.onPrimary,
+                                  backgroundColor: Colors.transparent,
+                                  side: BorderSide.none,
+                                  shape: const CircleBorder(),
+                                ),
+                                icon: const Icon(
+                                  PhosphorIconsRegular.plus,
+                                  size: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        SizedBox(
+                          height: 32,
+                          child: FilledButton.icon(
+                            onPressed: onTap,
+                            icon: const Icon(
+                              PhosphorIconsRegular.plus,
+                              size: 15,
                             ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(9),
+                            label: const Text('Add'),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
+                              textStyle: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(9),
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ],
@@ -592,21 +693,27 @@ class _ProductCard extends StatelessWidget {
     ),
   );
 
-  Widget _stockBadge(BuildContext context, String label, Color color) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.94),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
+  Widget _stockBadge(
+    BuildContext context,
+    String label,
+    Color color, {
+    bool isOutOfStock = false,
+  }) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+    decoration: BoxDecoration(
+      color: isOutOfStock
+          ? Theme.of(context).colorScheme.errorContainer
+          : Theme.of(context).colorScheme.surface.withValues(alpha: 0.94),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Text(
+      label,
+      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+        color: color,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
 }
 
 class _CurrentBillPanel extends StatelessWidget {

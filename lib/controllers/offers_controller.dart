@@ -104,6 +104,35 @@ class OffersController extends GetxController {
     }
   }
 
+  final filter = 'all'.obs;
+final query = ''.obs;
+
+bool isExpired(OfferRecord o) =>
+    o.endsAt != null && o.endsAt!.isBefore(DateTime.now());
+
+List<OfferRecord> get visible {
+  final q = query.value.trim().toLowerCase();
+  return offers.where((o) {
+    if (q.isNotEmpty &&
+        !o.name.toLowerCase().contains(q) &&
+        !productNames(o).toLowerCase().contains(q)) {
+      return false;
+    }
+    switch (filter.value) {
+      case 'live':
+        return o.live && !isExpired(o);
+      case 'paused':
+        return !o.live && !isExpired(o);
+      case 'pinned':
+        return o.pinned;
+      case 'expired':
+        return isExpired(o);
+      default:
+        return true;
+    }
+  }).toList();
+}
+
   @override
   void onClose() {
     _offersSub?.cancel();

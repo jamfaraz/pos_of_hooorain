@@ -44,6 +44,8 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
   bool _bulkEnabled = false;
   bool _featured = false;
   bool _active = true;
+  bool _showForHomeUsers = true;
+  bool _showForShopOwners = true;
   bool _saving = false;
   bool _uploadingVideo = false;
   double _videoProgress = 0;
@@ -89,6 +91,8 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
     _bulkEnabled = product?.bulkEnabled ?? false;
     _featured = product?.featured ?? false;
     _active = product?.active ?? true;
+    _showForHomeUsers = product?.showForHomeUsers ?? true;
+    _showForShopOwners = product?.showForShopOwners ?? true;
     for (final tier in product?.tiers ?? const []) {
       _addTier(
         qty: (tier['qty'] as num?)?.toInt() ?? 0,
@@ -233,6 +237,8 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
         videoUrl: _videoUrl.text.trim().isEmpty ? null : _videoUrl.text.trim(),
         featured: _featured,
         active: _active,
+        showForHomeUsers: _showForHomeUsers,
+        showForShopOwners: _showForShopOwners,
         bulkEnabled: _bulkEnabled,
         tiers: tiers,
         ratingAvg: _number('ratingAvg').clamp(0, 5).toDouble(),
@@ -576,10 +582,8 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
         if (item.id == current) return item.id as String;
       }
     }
-    final wanted = <String>{
-      _norm(current),
-      _norm(widget.product?.category),
-    }..remove('');
+    final wanted = <String>{_norm(current), _norm(widget.product?.category)}
+      ..remove('');
     for (final item in categories) {
       if (wanted.contains(_norm(item.name as String?))) {
         return item.id as String;
@@ -624,7 +628,12 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _tierInput(row['qty']!, label: 'Qty from', hint: 'Qty', integer: true),
+          _tierInput(
+            row['qty']!,
+            label: 'Qty from',
+            hint: 'Qty',
+            integer: true,
+          ),
           const SizedBox(width: 10),
           _tierInput(
             row['homePrice']!,
@@ -785,7 +794,10 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
             optional: true,
           ),
 
-          _sectionTitle('Photos', subtitle: 'The first photo is the cover. Up to 6 photos.'),
+          _sectionTitle(
+            'Photos',
+            subtitle: 'The first photo is the cover. Up to 6 photos.',
+          ),
           MultiImageUploader(
             value: _images,
             compact: true,
@@ -889,7 +901,10 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(value: _videoProgress, minHeight: 5),
+              child: LinearProgressIndicator(
+                value: _videoProgress,
+                minHeight: 5,
+              ),
             ),
           ],
           if (_videoError != null) ...[
@@ -929,6 +944,20 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
             'Visible in app',
             _active,
             (value) => setState(() => _active = value),
+          ),
+          _sectionTitle(
+            'Customer availability',
+            subtitle: 'Choose which customer panel can add this product.',
+          ),
+          _toggleRow(
+            'Show to home users',
+            _showForHomeUsers,
+            (value) => setState(() => _showForHomeUsers = value),
+          ),
+          _toggleRow(
+            'Show to shop owners',
+            _showForShopOwners,
+            (value) => setState(() => _showForShopOwners = value),
           ),
 
           if (_error != null) ...[

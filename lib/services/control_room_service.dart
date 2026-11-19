@@ -117,6 +117,63 @@ class ControlRoomService {
     return query.limit(limit).get();
   }
 
+  Future<DocumentSnapshot<Map<String, dynamic>>> fetchProductById(String id) =>
+      _firestore.collection('products').doc(id).get();
+
+  Future<List<ProductRecord>> fetchProductsForCategory({
+    required String categoryId,
+    required String categoryName,
+  }) async {
+    final categoryValues = {
+      if (categoryId.trim().isNotEmpty) categoryId,
+      if (categoryName.trim().isNotEmpty) categoryName,
+    }.toList();
+    if (categoryValues.isEmpty) return const [];
+
+    final products = _firestore.collection('products');
+    final snapshots = await Future.wait([
+      for (final field in ['categoryId', 'category', 'categoryName'])
+        products.where(field, whereIn: categoryValues).get(),
+    ]);
+    final documents = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+    for (final snapshot in snapshots) {
+      for (final document in snapshot.docs) {
+        documents[document.id] = document;
+      }
+    }
+
+    return documents.values
+        .map(
+          (document) => ProductRecord.fromMap(document.data(), id: document.id),
+        )
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  Future<int> countProductsForCategory({
+    required String categoryId,
+    required String categoryName,
+  }) async {
+    final categoryValues = {
+      if (categoryId.trim().isNotEmpty) categoryId,
+      if (categoryName.trim().isNotEmpty) categoryName,
+    }.toList();
+    if (categoryValues.isEmpty) return 0;
+
+    final result = await _firestore
+        .collection('products')
+        .where(
+          Filter.or(
+            Filter('categoryId', whereIn: categoryValues),
+            Filter('category', whereIn: categoryValues),
+            Filter('categoryName', whereIn: categoryValues),
+          ),
+        )
+        .count()
+        .get();
+    return result.count ?? 0;
+  }
+
   String newBillNumber() => _firestore.collection('bills').doc().id;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchRiders() => _firestore

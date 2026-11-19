@@ -31,12 +31,17 @@ class ItemProfitController extends GetxController {
   final Map<String, OrderRecord> _loadedOrderMap = {};
   bool _ordersDone = false;
   bool _billsDone = false;
+  String? _requestedProductId;
 
   bool get canLoadMore => !_ordersDone || !_billsDone;
 
   @override
   void onInit() {
     super.onInit();
+    final initialProductId = Get.arguments;
+    if (initialProductId is String && initialProductId.isNotEmpty) {
+      productId.value = initialProductId;
+    }
     reload();
   }
 
@@ -50,6 +55,7 @@ class ItemProfitController extends GetxController {
     _orderCursor = null;
     _billCursor = null;
     _loadedOrderMap.clear();
+    _requestedProductId = null;
     _ordersDone = false;
     _billsDone = false;
     void updateOrders() {
@@ -58,12 +64,24 @@ class ItemProfitController extends GetxController {
     }
 
     _productsSub = _service.watchProducts().listen((snapshot) {
+      final selectedId = productId.value;
+      final cachedSelected = selectedId == null
+          ? null
+          : products.where((product) => product.id == selectedId).firstOrNull;
       products.assignAll(
         snapshot.docs.map(
           (doc) => ProductRecord.fromMap(doc.data(), id: doc.id),
         ),
       );
-      productId.value ??= products.firstOrNull?.id;
+      if (selectedId == null) {
+        productId.value = products.firstOrNull?.id;
+      } else if (!products.any((product) => product.id == selectedId)) {
+        if (cachedSelected != null) {
+          products.add(cachedSelected);
+        } else {
+          _loadSelectedProduct(selectedId);
+        }
+      }
       loading.value = false;
     }, onError: _handleError);
     _ordersSub = _service.watchRecentOrders().listen((snapshot) {
@@ -102,6 +120,24 @@ class ItemProfitController extends GetxController {
   void _handleError(Object exception) {
     error.value = exception.toString();
     loading.value = false;
+  }
+
+  Future<void> _loadSelectedProduct(String id) async {
+    if (_requestedProductId == id) return;
+    _requestedProductId = id;
+    try {
+      final doc = await _service.fetchProductById(id);
+      if (!doc.exists) {
+        if (productId.value == id) productId.value = products.firstOrNull?.id;
+        return;
+      }
+      if (!products.any((product) => product.id == id)) {
+        products.add(ProductRecord.fromMap(doc.data()!, id: doc.id));
+      }
+    } catch (exception) {
+      _requestedProductId = null;
+      _handleError(exception);
+    }
   }
 
   Future<void> loadMore() async {
@@ -250,22 +286,6 @@ class ItemProfitController extends GetxController {
   int get belowCostCount => priceScenarios
       .where((scenario) => scenario.$2 < (selectedProduct?.cost ?? 0))
       .length;
-
-  ProfitTotals totalsFor(ProductRecord product) => calculateProfitTotals(
-    periodOrders.map(
-      (order) => OrderRecord(
-        items: order.items
-            .where((line) => line.productId == product.id)
-            .toList(),
-        number: order.number,
-        createdAt: order.createdAt,
-      ),
-    ),
-  );
-
-  List<ProductRecord> get weakestProducts =>
-      products.toList()
-        ..sort((a, b) => totalsFor(a).profit.compareTo(totalsFor(b).profit));
 
   List<double> get dailyProfit {
     final product = selectedProduct;

@@ -3,23 +3,23 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 
-import '../models/rider_invite_record.dart';
 import '../models/rider_record.dart';
 import '../services/control_room_service.dart';
+import '../services/rider_service.dart';
 import '../utils/rider_pay.dart';
 
 class RidersController extends GetxController {
-  RidersController(this._service);
+  RidersController(this._service, {RiderAccountService? accounts})
+    : _accounts = accounts ?? RiderAccountService();
 
   final ControlRoomService _service;
+  final RiderAccountService _accounts;
   final riders = <RiderRecord>[].obs;
-  final invites = <RiderInviteRecord>[].obs;
   final deliveries = <String, int>{}.obs;
   final paidThisMonth = <String, bool>{}.obs;
   final loading = true.obs;
   final error = RxnString();
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ridersSub;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _invitesSub;
 
   DateTime get monthStart =>
       DateTime(DateTime.now().year, DateTime.now().month);
@@ -36,7 +36,6 @@ class RidersController extends GetxController {
     loading.value = true;
     error.value = null;
     _ridersSub?.cancel();
-    _invitesSub?.cancel();
     _ridersSub = _service.watchRiders().listen(
       (snapshot) {
         riders.assignAll(
@@ -52,13 +51,6 @@ class RidersController extends GetxController {
         loading.value = false;
       },
     );
-    _invitesSub = _service.watchRiderInvites().listen((snapshot) {
-      invites.assignAll(
-        snapshot.docs.map(
-          (doc) => RiderInviteRecord.fromMap(doc.data(), id: doc.id),
-        ),
-      );
-    }, onError: (Object exception) => error.value = exception.toString());
   }
 
   Future<void> _loadMonthSummary() async {
@@ -95,55 +87,30 @@ class RidersController extends GetxController {
     (total, rider) => total + (isPaid(rider) ? 0 : netPay(rider)),
   );
 
-  Future<RiderInviteRecord> createInvite({
-    required String name,
-    required String phone,
-    required double baseSalary,
-    required double bonus,
-    required String code,
-  }) async {
-    final invite = RiderInviteRecord(
-      name: name,
-      phone: phone,
-      baseSalary: baseSalary,
-      perDeliveryBonus: bonus,
-      code: code,
-      sentAt: DateTime.now(),
+  /// Creates the rider's login (Firebase Auth) and the rider document.
+  /// The document id is the Auth uid, so the rider app can read
+  /// `riders/{uid}` directly. Returns the new uid.
+  ///
+  /// Note: this deliberately does not touch [error], because a failed
+  /// create must not replace the whole page with the error screen.
+  Future<String> createRider({
+    required RiderRecord draft,
+    required String password,
+  }) {
+    return _accounts.createRiderLogin(
+      email: draft.email,
+      password: password,
+      onCreated: (uid) => _service.saveRider(
+        draft.copyWith(id: uid, uid: uid, joinedAt: DateTime.now()),
+      ),
     );
-    try {
-      final id = await _service.createRiderInvite(invite);
-      return RiderInviteRecord(
-        id: id,
-        name: invite.name,
-        phone: invite.phone,
-        baseSalary: invite.baseSalary,
-        perDeliveryBonus: invite.perDeliveryBonus,
-        code: invite.code,
-        sentAt: invite.sentAt,
-      );
-    } catch (exception) {
-      error.value = exception.toString();
-      rethrow;
+  }
+
+  Future<void> sendPasswordReset(RiderRecord rider) async {
+    if (rider.email.trim().isEmpty) {
+      throw StateError('This rider has no login email on file.');
     }
-  }
-
-  Future<void> markInviteJoined(RiderInviteRecord invite) async {
-    try {
-      await _service.markInviteJoined(invite);
-    } catch (exception) {
-      error.value = exception.toString();
-      rethrow;
-    }
-  }
-
-  Future<void> cancelInvite(RiderInviteRecord invite) async {
-    if (invite.id == null) throw StateError('Invite has no document ID.');
-    await _service.cancelRiderInvite(invite.id!);
-  }
-
-  Future<void> resendInvite(RiderInviteRecord invite) async {
-    if (invite.id == null) throw StateError('Invite has no document ID.');
-    await _service.resendRiderInvite(invite.id!);
+    await _accounts.sendPasswordReset(rider.email);
   }
 
   Future<List<Map<String, dynamic>>> salaryHistory(RiderRecord rider) async {
@@ -174,6 +141,8 @@ class RidersController extends GetxController {
     paidThisMonth[id] = true;
   }
 
+  /// Removes the rider document. The Auth login is blocked automatically
+  /// because the rider app and Firestore rules require an active rider doc.
   Future<void> deleteRider(RiderRecord rider) async {
     if (rider.id == null) throw StateError('Rider has no document ID.');
     await _service.deleteRider(rider.id!);
@@ -182,7 +151,6 @@ class RidersController extends GetxController {
   @override
   void onClose() {
     _ridersSub?.cancel();
-    _invitesSub?.cancel();
     super.onClose();
   }
 }

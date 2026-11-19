@@ -18,6 +18,8 @@ class Product {
     bool? featured,
     bool? isHide,
     bool? active,
+    this.showForHomeUsers = true,
+    this.showForShopOwners = true,
     this.isOutOfStock = false,
     String? imageUrl,
     List<String> images = const [],
@@ -72,6 +74,8 @@ class Product {
   final bool featured;
   final bool isHide;
   final bool active;
+  final bool showForHomeUsers;
+  final bool showForShopOwners;
   final bool isOutOfStock;
   final String? imageUrl;
   final List<String> images;
@@ -121,6 +125,8 @@ class Product {
           data['featured'] as bool? ?? data['isFeatured'] as bool? ?? false,
       isHide: data['isHide'] as bool? ?? false,
       active: data['active'] as bool? ?? !(data['isHide'] as bool? ?? false),
+      showForHomeUsers: data['showForHomeUsers'] as bool? ?? true,
+      showForShopOwners: data['showForShopOwners'] as bool? ?? true,
       isOutOfStock: data['isOutOfStock'] as bool? ?? false,
       imageUrl: oldImage,
       images: images,
@@ -157,6 +163,8 @@ class Product {
     'featured': featured,
     'isHide': !active,
     'active': active,
+    'showForHomeUsers': showForHomeUsers,
+    'showForShopOwners': showForShopOwners,
     'isOutOfStock': isOutOfStock,
     'imageUrl': images.isEmpty ? imageUrl : images.first,
     'images': images,
@@ -172,6 +180,10 @@ class Product {
 
   bool get inStock => stock > 0 && !isOutOfStock;
   int get availableQuantity => inStock ? stock : 0;
+  bool isAvailableForCustomerType(String customerType) =>
+      customerType.toLowerCase() == 'shop'
+      ? showForShopOwners
+      : showForHomeUsers;
 
   double? getBulkPriceForQuantity(int quantity) {
     final eligible =
@@ -211,6 +223,8 @@ class Product {
     bool? featured,
     bool? isHide,
     bool? active,
+    bool? showForHomeUsers,
+    bool? showForShopOwners,
     bool? isOutOfStock,
     String? imageUrl,
     List<String>? images,
@@ -241,6 +255,8 @@ class Product {
     featured: featured ?? this.featured,
     isHide: isHide ?? this.isHide,
     active: active ?? this.active,
+    showForHomeUsers: showForHomeUsers ?? this.showForHomeUsers,
+    showForShopOwners: showForShopOwners ?? this.showForShopOwners,
     isOutOfStock: isOutOfStock ?? this.isOutOfStock,
     imageUrl: imageUrl ?? this.imageUrl,
     images: images ?? this.images,

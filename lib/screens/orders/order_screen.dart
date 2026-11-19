@@ -1,16 +1,14 @@
-import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:hoorain_pos/constants.dart';
 import 'package:hoorain_pos/models/order_model.dart';
-import 'package:hoorain_pos/screens/orders/order_card.dart';
 import 'package:hoorain_pos/widgets/app_loader.dart';
-import 'package:hoorain_pos/widgets/app_table.dart';
 import 'package:hoorain_pos/widgets/empty_state.dart';
 import 'package:hoorain_pos/widgets/page_header.dart';
-import 'package:hoorain_pos/utils/money.dart';
 import '../../controllers/order_controller.dart';
+import '../../widgets/order_card.dart';
+import '../../widgets/order_history_table.dart';
 import '../../widgets/retry_widget.dart';
 
 enum OrderSort { newest, oldest, amountHigh, amountLow }
@@ -61,6 +59,7 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> {
   final OrderController controller = Get.put(OrderController());
   final TextEditingController _searchController = TextEditingController();
+  final DateFormat _orderDateFormat = DateFormat('dd MMM, HH:mm');
 
   DateTime? _startDate;
   DateTime? _endDate;
@@ -113,6 +112,19 @@ class _OrdersScreenState extends State<OrdersScreen> {
       result = result.where((o) => o.paymentMethod == _paymentMethodFilter);
     }
 
+    if (_hasDateFilter) {
+      final start = DateTime(
+        _startDate!.year,
+        _startDate!.month,
+        _startDate!.day,
+      );
+      final end = DateTime(_endDate!.year, _endDate!.month, _endDate!.day + 1);
+      result = result.where(
+        (order) =>
+            !order.orderDate.isBefore(start) && order.orderDate.isBefore(end),
+      );
+    }
+
     final list = result.toList();
 
     switch (_sort) {
@@ -148,9 +160,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
           _sort = sort;
           _paymentMethodFilter = paymentMethod;
         });
-        if (start != null && end != null) {
-          controller.filterOrdersByDateRange(start, end);
-        } else {
+        if (start == null || end == null) {
           controller.fetchOrders(orderStatus: widget.orderStatus);
         }
       },
@@ -270,8 +280,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 return const AppLoader(label: 'Loading orders...');
               }
               final filtered = _applyClientFilters(controller.orders);
+              late final Widget ordersContent;
               if (filtered.isEmpty) {
-                return EmptyState(
+                ordersContent = EmptyState(
                   title: controller.orders.isEmpty
                       ? 'No ${widget.orderStatus.toLowerCase()} orders'
                       : 'No matching orders',
@@ -287,29 +298,85 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         )
                       : _clearAllFilters,
                 );
-              }
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth >= 800) {
-                    return SizedBox(
-                      height: 48.0 + 58.0 * filtered.length,
-                      child: _desktopTable(context, filtered),
-                    );
-                  }
-                  return Column(
-                    children: [
-                      for (final order in filtered)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
-                          child: OrderCard(
-                            order: order,
-                            onTap: () =>
-                                Get.toNamed('/orders/detail', arguments: order),
+              } else {
+                ordersContent = LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth >= 900) {
+                      return Column(
+                        children: [
+                          const OrderHistoryTableHeader(),
+                          for (var index = 0; index < filtered.length; index++)
+                            OrderHistoryTableRow(
+                              order: filtered[index],
+                              placedAt: _orderDateFormat.format(
+                                filtered[index].orderDate,
+                              ),
+                              loadCustomerImage: () => controller
+                                  .getCustomerImage(filtered[index].userId),
+                              onTap: () => Get.toNamed(
+                                '/orders/detail',
+                                arguments: filtered[index],
+                              ),
+                              isLast: index == filtered.length - 1,
+                            ),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        for (final order in filtered)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+                            child: OrderCard(
+                              order: order,
+                              compact: true,
+                              loadCustomerImage: () =>
+                                  controller.getCustomerImage(order.userId),
+                              onTap: () => Get.toNamed(
+                                '/orders/detail',
+                                arguments: order,
+                              ),
+                            ),
                           ),
-                        ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                );
+              }
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ordersContent,
+                  if (controller.hasMoreOrders.value ||
+                      controller.isLoadingMore.value ||
+                      controller.loadMoreError.value.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: controller.isLoadingMore.value
+                          ? const AppLoader(label: 'Loading more orders...')
+                          : controller.loadMoreError.value.isNotEmpty
+                          ? Column(
+                              children: [
+                                Text(
+                                  'Could not load more orders: ${controller.loadMoreError.value}',
+                                  textAlign: TextAlign.center,
+                                ),
+                                TextButton(
+                                  onPressed: () => controller.loadMoreOrders(
+                                    orderStatus: widget.orderStatus,
+                                  ),
+                                  child: const Text('Try again'),
+                                ),
+                              ],
+                            )
+                          : OutlinedButton(
+                              onPressed: () => controller.loadMoreOrders(
+                                orderStatus: widget.orderStatus,
+                              ),
+                              child: const Text('Load more orders'),
+                            ),
+                    ),
+                ],
               );
             }),
           ],
@@ -317,113 +384,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
       ),
     );
   }
-
-  Widget _desktopTable(BuildContext context, List<OrderModel> orders) {
-    final theme = Theme.of(context);
-    return AppTable(
-      minWidth: 960,
-      columns: const [
-        DataColumn2(label: Text('Order'), size: ColumnSize.M),
-        DataColumn2(label: Text('Placed')),
-        DataColumn2(label: Text('Customer'), size: ColumnSize.L),
-        DataColumn2(label: Text('Items'), numeric: true),
-        DataColumn2(label: Text('Payment')),
-        DataColumn2(label: Text('Total'), numeric: true),
-        DataColumn2(label: Text('Status')),
-      ],
-      rows: orders
-          .map(
-            (order) => DataRow(
-              onSelectChanged: (_) =>
-                  Get.toNamed('/orders/detail', arguments: order),
-              cells: [
-                DataCell(
-                  Text(
-                    '#${order.orderId ?? order.id}',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-                DataCell(Text(_formatDateTime(order.orderDate))),
-                DataCell(
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        order.userName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        order.userPhone,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                DataCell(Text('${order.items.length}')),
-                DataCell(Text(order.paymentMethod)),
-                DataCell(
-                  Text(
-                    Money.rs(order.total),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                DataCell(_statusChip(context, order.status)),
-              ],
-            ),
-          )
-          .toList(),
-    );
-  }
-
-  Widget _statusChip(BuildContext context, String status) {
-    final color = switch (status.toLowerCase()) {
-      'pending' => AppColors.warning,
-      'cancelled' || 'rejected' => Theme.of(context).colorScheme.error,
-      'delivered' => AppColors.ok,
-      'accepted' || 'confirmed' || 'packed' => AppColors.info,
-      _ => Theme.of(context).colorScheme.primary,
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        status,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
-  String _formatDateTime(DateTime date) =>
-      '${date.day} ${_month(date.month)} ${date.year} · ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-
-  String _month(int month) => const [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][month - 1];
 
   Widget _buildActiveFilterBar(BuildContext context) {
     final theme = Theme.of(context);

@@ -30,6 +30,7 @@ class OrderModel {
     this.customerType = 'home',
     this.channel = 'online',
     this.discount = 0,
+    this.statusReason,
   }) : orderId = orderId ?? number,
        userId = customerId ?? userId ?? '',
        deliveryFee = deliveryFee ?? delivery ?? 0,
@@ -60,6 +61,9 @@ class OrderModel {
   final String customerType;
   final String channel;
   final double discount;
+
+  /// Why the order was rejected, cancelled or returned.
+  final String? statusReason;
 
   String get number => orderId ?? id;
   String get customerId => userId;
@@ -102,6 +106,7 @@ class OrderModel {
       customerType: (data['customerType'] ?? 'home').toString(),
       channel: (data['channel'] ?? 'online').toString(),
       discount: _number(data['discount']),
+      statusReason: data['statusReason'] as String?,
     );
   }
 
@@ -133,6 +138,7 @@ class OrderModel {
     'riderId': riderId,
     'customerType': customerType,
     'channel': channel,
+    'statusReason': statusReason,
   };
 
   OrderModel copyWith({
@@ -145,6 +151,7 @@ class OrderModel {
     double? total,
     List<OrderItem>? items,
     String? notes,
+    String? statusReason,
   }) => OrderModel(
     id: id,
     orderId: orderId,
@@ -170,6 +177,7 @@ class OrderModel {
     customerType: customerType,
     channel: channel,
     discount: discount ?? this.discount,
+    statusReason: statusReason ?? this.statusReason,
   );
 }
 

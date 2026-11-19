@@ -23,7 +23,7 @@ const double _wBulk = 86;
 const double _wRating = 98;
 const double _wFeatured = 86;
 const double _wVisible = 78;
-const double _wActions = 128;
+const double _wActions = 168;
 const double _kHeaderHeight = 42;
 const double _kProductMin = 260;
 const double _kSidePad = 16;
@@ -92,7 +92,7 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                 children: [
                   _toolbar(context, products.length),
                   Divider(height: 1, color: Theme.of(context).dividerColor),
-                  _content(context, products),
+                  _content(context, products, currentMode),
                 ],
               ),
             ),
@@ -262,14 +262,20 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
   // Content
   // --------------------------------------------------------------------
 
-  Widget _content(BuildContext context, List<ProductRecord> products) {
-    if (controller.loading.value && controller.products.isEmpty) {
+  Widget _content(
+    BuildContext context,
+    List<ProductRecord> products,
+    String selectedMode,
+  ) {
+    if (controller.loadingFor(selectedMode).value &&
+        controller.productsFor(selectedMode).isEmpty) {
       return const Center(child: AppLoader(label: 'Loading products...'));
     }
-    if (controller.error.value != null && controller.products.isEmpty) {
+    if (controller.errorFor(selectedMode).value != null &&
+        controller.productsFor(selectedMode).isEmpty) {
       return ErrorRetryWidget(
-        errorMessage: controller.error.value!,
-        onRetry: controller.reload,
+        errorMessage: controller.errorFor(selectedMode).value!,
+        onRetry: () => controller.reload(selectedMode: selectedMode),
       );
     }
     if (products.isEmpty) {
@@ -285,21 +291,27 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                 ? () => ProductEditorDrawer.show(null)
                 : null,
           ),
-          if (controller.canLoadMore.value ||
-              controller.loadMoreError.value != null)
-            _footer(context),
+          if (controller.canLoadMoreFor(selectedMode).value ||
+              controller.loadMoreErrorFor(selectedMode).value != null)
+            _footer(context, selectedMode),
         ],
       );
     }
     final showFooter =
-        controller.canLoadMore.value || controller.loadMoreError.value != null;
+        controller.canLoadMoreFor(selectedMode).value ||
+        controller.loadMoreErrorFor(selectedMode).value != null;
     return Column(
-      children: [_table(context, products), if (showFooter) _footer(context)],
+      children: [
+        _table(context, products),
+        if (showFooter) _footer(context, selectedMode),
+      ],
     );
   }
 
-  Widget _footer(BuildContext context) {
+  Widget _footer(BuildContext context, String selectedMode) {
     final theme = Theme.of(context);
+    final loadMoreError = controller.loadMoreErrorFor(selectedMode).value;
+    final loadingMore = controller.loadingMoreFor(selectedMode).value;
     return Container(
       height: 40,
       decoration: BoxDecoration(
@@ -308,7 +320,7 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (controller.loadMoreError.value != null)
+          if (loadMoreError != null)
             Flexible(
               child: Padding(
                 padding: const EdgeInsets.only(right: 10),
@@ -321,25 +333,25 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
                 ),
               ),
             ),
-          if (controller.canLoadMore.value)
+          if (controller.canLoadMoreFor(selectedMode).value)
             TextButton.icon(
-              onPressed: controller.loadingMore.value
+              onPressed: loadingMore
                   ? null
-                  : controller.loadMore,
+                  : () => controller.loadMore(selectedMode: selectedMode),
               style: TextButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 minimumSize: const Size(0, 32),
               ),
-              icon: controller.loadingMore.value
+              icon: loadingMore
                   ? const SizedBox.square(
                       dimension: 14,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(PhosphorIconsRegular.arrowDown, size: 16),
               label: Text(
-                controller.loadingMore.value
+                loadingMore
                     ? 'Loading products...'
-                    : controller.loadMoreError.value == null
+                    : loadMoreError == null
                     ? 'Load more products'
                     : 'Retry loading products',
               ),
@@ -546,6 +558,23 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        IconButton(
+          tooltip: 'View item profit',
+          onPressed: product.id == null
+              ? null
+              : () => Get.toNamed('/item-profit', arguments: product.id),
+          style: IconButton.styleFrom(
+            minimumSize: const Size(34, 34),
+            padding: EdgeInsets.zero,
+            foregroundColor: theme.colorScheme.primary,
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          icon: const Icon(PhosphorIconsRegular.chartLineUp, size: 16),
+        ),
+        const SizedBox(width: 6),
         OutlinedButton.icon(
           onPressed: () => ProductEditorDrawer.show(product),
           icon: const Icon(PhosphorIconsRegular.pencilSimple, size: 14),

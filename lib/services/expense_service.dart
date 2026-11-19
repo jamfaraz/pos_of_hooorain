@@ -3,7 +3,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/expense_record.dart';
 
 class ExpensePage {
-  const ExpensePage({required this.items, required this.cursor, required this.hasMore});
+  const ExpensePage({
+    required this.items,
+    required this.cursor,
+    required this.hasMore,
+  });
 
   final List<ExpenseRecord> items;
   final DocumentSnapshot<Map<String, dynamic>>? cursor;
@@ -12,13 +16,15 @@ class ExpensePage {
 
 /// All Firestore access for expenses. Controllers never call Firestore directly.
 /// Queries use a single field (createdAt), so no composite index is needed.
+/// Category / search / payment filters are applied on the loaded month.
 class ExpenseService {
   ExpenseService({FirebaseFirestore? firestore})
     : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
 
-  CollectionReference<Map<String, dynamic>> get _expenses => _db.collection('expenses');
+  CollectionReference<Map<String, dynamic>> get _expenses =>
+      _db.collection('expenses');
   DocumentReference<Map<String, dynamic>> get _budgetDoc =>
       _db.collection('settings').doc('expense_budgets');
 
@@ -33,7 +39,8 @@ class ExpenseService {
     final snapshot = await query.get();
     return ExpensePage(
       items: [
-        for (final doc in snapshot.docs) ExpenseRecord.fromMap(doc.data(), id: doc.id),
+        for (final doc in snapshot.docs)
+          ExpenseRecord.fromMap(doc.data(), id: doc.id),
       ],
       cursor: snapshot.docs.isEmpty ? after : snapshot.docs.last,
       hasMore: snapshot.docs.length == limit,
@@ -44,7 +51,7 @@ class ExpenseService {
   Future<List<ExpenseRecord>> fetchRange(
     DateTime from,
     DateTime to, {
-    int limit = 500,
+    int limit = 1000,
   }) async {
     final snapshot = await _expenses
         .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(from))
@@ -53,7 +60,8 @@ class ExpenseService {
         .limit(limit)
         .get();
     return [
-      for (final doc in snapshot.docs) ExpenseRecord.fromMap(doc.data(), id: doc.id),
+      for (final doc in snapshot.docs)
+        ExpenseRecord.fromMap(doc.data(), id: doc.id),
     ];
   }
 

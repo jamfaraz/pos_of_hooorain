@@ -154,7 +154,7 @@ class BillingController extends GetxController {
 
   List<String> get categories {
     final names =
-        products
+        productsForCustomerType
             .map((product) => product.category.trim())
             .where((name) => name.isNotEmpty)
             .toSet()
@@ -165,7 +165,7 @@ class BillingController extends GetxController {
 
   List<ProductRecord> get filteredProducts {
     final query = searchQuery.value.trim().toLowerCase();
-    return products.where((product) {
+    return productsForCustomerType.where((product) {
       final matchesStock = product.inStock;
       final matchesCategory =
           selectedCategory.value == 'All' ||
@@ -177,6 +177,12 @@ class BillingController extends GetxController {
       return matchesStock && matchesCategory && matchesQuery;
     }).toList();
   }
+
+  List<ProductRecord> get productsForCustomerType => products
+      .where(
+        (product) => product.isAvailableForCustomerType(customerType.value),
+      )
+      .toList();
 
   ProductRecord? get selectedProduct => products
       .where((product) => product.id == selectedProductId.value)
@@ -219,6 +225,12 @@ class BillingController extends GetxController {
     if (saving.value) return;
     if (product.id == null) {
       error.value = 'This product cannot be added because it has no ID.';
+      return;
+    }
+    if (!product.isAvailableForCustomerType(customerType.value)) {
+      error.value = customerType.value == 'shop'
+          ? '${product.name} is hidden from shop owners.'
+          : '${product.name} is hidden from home users.';
       return;
     }
     final existingIndex = cart.indexWhere(
@@ -294,6 +306,9 @@ class BillingController extends GetxController {
   void setCustomerType(String type) {
     if (saving.value) return;
     customerType.value = type;
+    if (!categories.contains(selectedCategory.value)) {
+      selectedCategory.value = 'All';
+    }
     for (final line in cart.toList()) {
       changeQuantity(line, line.qty);
     }

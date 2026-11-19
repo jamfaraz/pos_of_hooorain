@@ -34,12 +34,16 @@ class AppTable extends StatelessWidget {
     }
     return LayoutBuilder(
       builder: (context, constraints) {
+        final tableHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : headingRowHeight + dataRowHeight * rows.length;
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SizedBox(
             width: constraints.maxWidth < minWidth
                 ? minWidth
                 : constraints.maxWidth,
+            height: tableHeight,
             child: DataTable2(
               columns: columns,
               rows: rows,

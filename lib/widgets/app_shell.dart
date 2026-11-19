@@ -83,12 +83,6 @@ class _AppShellState extends State<AppShell> {
     ]),
     _NavGroup('Money', [
       _NavItem(
-        'Item profit',
-        '/item-profit',
-        PhosphorIconsRegular.chartLineUp,
-        PhosphorIconsFill.chartLineUp,
-      ),
-      _NavItem(
         'Expenses',
         '/expenses',
         PhosphorIconsRegular.wallet,
@@ -115,6 +109,14 @@ class _AppShellState extends State<AppShell> {
         '/offers',
         PhosphorIconsRegular.megaphone,
         PhosphorIconsFill.megaphone,
+      ),
+    ]),
+    _NavGroup('Admin', [
+      _NavItem(
+        'Store setup',
+        '/store-setup',
+        PhosphorIconsRegular.gear,
+        PhosphorIconsFill.gear,
       ),
     ]),
   ];
@@ -271,8 +273,8 @@ class _AppShellState extends State<AppShell> {
           ),
           const SizedBox(width: 10),
           Container(
-            width: 54,
-            height: 52,
+            width: 44,
+            height: 44,
             decoration: _headerIconDecoration(context),
             child: PopupMenuButton<String>(
               tooltip: 'Account',
@@ -312,8 +314,8 @@ class _AppShellState extends State<AppShell> {
     required VoidCallback? onPressed,
     required Widget icon,
   }) => Container(
-    width: 54,
-    height: 52,
+    width: 44,
+    height: 44,
     decoration: _headerIconDecoration(context),
     child: IconButton(
       tooltip: tooltip,
@@ -490,6 +492,7 @@ class _AppShellState extends State<AppShell> {
                             color: selected
                                 ? theme.colorScheme.onPrimaryContainer
                                 : null,
+
                             fontWeight: selected
                                 ? FontWeight.w700
                                 : FontWeight.w500,

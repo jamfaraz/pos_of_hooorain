@@ -3,26 +3,41 @@ import 'package:get/get.dart';
 
 import '../models/order_model.dart';
 import '../utils/toas_message.dart';
-import 'notifications.dart'; // Assuming this is LocalNotificationService
-import 'data_controller.dart'; // Import the DataController
+import 'notifications.dart'; // LocalNotificationService
+import 'data_controller.dart';
 
 class OrderController extends GetxController {
+  static const int pageSize = 20;
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  // Initialize DataController for creating in-app notifications
   final DataController _dataController = Get.put(DataController());
 
   final RxList<OrderModel> orders = <OrderModel>[].obs;
-  final RxList<OrderModel> allOrders =
-      <OrderModel>[].obs; // Store all orders for filtering
+  final RxList<OrderModel> allOrders = <OrderModel>[].obs;
   final RxBool isLoading = true.obs;
+  final RxBool isLoadingMore = false.obs;
+  final RxBool hasMoreOrders = false.obs;
   final RxBool hasError = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxString loadMoreError = ''.obs;
+  DocumentSnapshot<Map<String, dynamic>>? _lastOrderDocument;
+  int _ordersRequestId = 0;
+  final Map<String, Future<String?>> _customerImageCache = {};
 
-  // --- Helper to fetch User Token (fcmToken assumed) ---
+  /// Statuses after which an order is closed and cannot be changed again.
+  static const Set<String> closedStatuses = {
+    'Cancelled',
+    'Rejected',
+    'Returned',
+  };
+
+  // --------------------------------------------------------------------
+  // Helpers
+  // --------------------------------------------------------------------
+
   Future<String?> _getUserToken(String userId) async {
     try {
       final userDoc = await _firestore.collection('users').doc(userId).get();
-      // Ensure you check the correct field name, using 'fcmToken' as per your provided code
       if (userDoc.exists && userDoc.data()!.containsKey('fcmToken')) {
         return userDoc.data()!['fcmToken'] as String?;
       }
@@ -33,38 +48,131 @@ class OrderController extends GetxController {
     }
   }
 
-  // --- Order Fetching/Filtering (Unchanged) ---
+  Future<String?> getCustomerImage(String userId) {
+    if (userId.isEmpty) return Future.value(null);
+    return _customerImageCache.putIfAbsent(userId, () async {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      final image = userDoc.data()?['image'];
+      return image is String && image.isNotEmpty ? image : null;
+    });
+  }
+
+  /// Product id -> quantity to put back, read from the order document.
+  Map<String, int> _quantitiesFrom(Map<String, dynamic> orderData) {
+    var quantities = <String, int>{};
+    if (orderData['productQuantities'] != null) {
+      quantities = Map<String, int>.from(orderData['productQuantities']);
+    }
+    if (quantities.isEmpty && orderData['items'] != null) {
+      final items = List<Map<String, dynamic>>.from(orderData['items']);
+      for (final item in items) {
+        final productId = item['productId'];
+        final quantity = (item['quantity'] ?? item['qty'] ?? 0) as int;
+        quantities[productId] = (quantities[productId] ?? 0) + quantity;
+      }
+    }
+    return quantities;
+  }
+
+  Future<void> _notifyCustomer({
+    required String userId,
+    required String orderDocId,
+    required String title,
+    required String body,
+  }) async {
+    final token = await _getUserToken(userId);
+    if (token != null) {
+      await LocalNotificationService.sendNotificationUsingApi(
+        token: token,
+        title: title,
+        body: body,
+        data: {'screen': 'order_detail', 'orderId': orderDocId},
+      );
+    }
+    await _dataController.createNotification(
+      message: body,
+      userId: userId,
+      orderId: orderDocId,
+      isChat: false,
+    );
+  }
+
+  // --------------------------------------------------------------------
+  // Fetching / filtering
+  // --------------------------------------------------------------------
+
   Future<void> fetchOrders({required String orderStatus}) async {
-    // ... (Your fetchOrders implementation is unchanged)
+    final requestId = ++_ordersRequestId;
     try {
       isLoading(true);
+      isLoadingMore(false);
       hasError(false);
+      errorMessage('');
+      loadMoreError('');
+      hasMoreOrders(false);
+      _lastOrderDocument = null;
+      allOrders.clear();
+      orders.clear();
 
-      Query query = _firestore
+      final snapshot = await _firestore
           .collection('orders')
           .where('status', isEqualTo: orderStatus)
-          .orderBy('orderDate', descending: true);
+          .orderBy('orderDate', descending: true)
+          .limit(pageSize)
+          .get();
 
-      final snapshot = await query.get();
-
-      print(snapshot.docs.length);
-      allOrders.assignAll(
-        snapshot.docs
-            .map(
-              (doc) => OrderModel.fromMap(
-                doc.data() as Map<String, dynamic>,
-                doc.id,
-              ),
-            )
-            .toList(),
-      );
-      orders.assignAll(allOrders); // Initially show all orders
+      if (requestId != _ordersRequestId) return;
+      final page = snapshot.docs
+          .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
+          .toList();
+      allOrders.assignAll(page);
+      orders.assignAll(page);
+      _lastOrderDocument = snapshot.docs.isEmpty ? null : snapshot.docs.last;
+      hasMoreOrders.value = snapshot.docs.length == pageSize;
     } catch (e) {
+      if (requestId != _ordersRequestId) return;
       hasError(true);
       errorMessage.value = e.toString();
       rethrow;
     } finally {
-      isLoading(false);
+      if (requestId == _ordersRequestId) isLoading(false);
+    }
+  }
+
+  Future<void> loadMoreOrders({required String orderStatus}) async {
+    final cursor = _lastOrderDocument;
+    if (cursor == null ||
+        !hasMoreOrders.value ||
+        isLoadingMore.value ||
+        isLoading.value) {
+      return;
+    }
+
+    final requestId = _ordersRequestId;
+    isLoadingMore(true);
+    loadMoreError('');
+    try {
+      final snapshot = await _firestore
+          .collection('orders')
+          .where('status', isEqualTo: orderStatus)
+          .orderBy('orderDate', descending: true)
+          .startAfterDocument(cursor)
+          .limit(pageSize)
+          .get();
+
+      if (requestId != _ordersRequestId) return;
+      final page = snapshot.docs
+          .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
+          .toList();
+      allOrders.addAll(page);
+      orders.addAll(page);
+      if (snapshot.docs.isNotEmpty) _lastOrderDocument = snapshot.docs.last;
+      hasMoreOrders.value = snapshot.docs.length == pageSize;
+    } catch (e) {
+      if (requestId != _ordersRequestId) return;
+      loadMoreError.value = e.toString();
+    } finally {
+      if (requestId == _ordersRequestId) isLoadingMore(false);
     }
   }
 
@@ -77,7 +185,6 @@ class OrderController extends GetxController {
       59,
       59,
     );
-
     orders.value = allOrders.where((order) {
       return order.orderDate.isAfter(
             startDate.subtract(const Duration(days: 1)),
@@ -88,109 +195,121 @@ class OrderController extends GetxController {
     }).toList();
   }
 
-  // --- Status Update Functions (Modified) ---
+  // --------------------------------------------------------------------
+  // Closing an order (Cancelled / Rejected / Returned)
+  // --------------------------------------------------------------------
 
-  // Updated cancelOrder method with quantity reversion
-  Future<bool> cancelOrder(String orderId) async {
+  /// Shared logic: checks the current status, optionally puts the products
+  /// back into stock, writes the new status + reason and notifies the customer.
+  Future<bool> _closeOrder({
+    required String id,
+    required String status,
+    required Set<String> allowedFrom,
+    required String reason,
+    required bool restock,
+    required String title,
+    required String Function(String displayId) body,
+    required String successMessage,
+  }) async {
     try {
       isLoading(true);
-
-      final orderDoc = await _firestore.collection('orders').doc(orderId).get();
-
+      final orderDoc = await _firestore.collection('orders').doc(id).get();
       if (!orderDoc.exists) throw Exception('Order not found');
+      final data = orderDoc.data();
+      if (data == null) throw Exception('Order data is null');
 
-      final orderData = orderDoc.data();
-      if (orderData == null) throw Exception('Order data is null');
-
-      final currentStatus = orderData['status'];
-      if (currentStatus == 'Cancelled') {
-        MessageToast.showToast(msg: 'Order is already cancelled');
+      final current = (data['status'] ?? '').toString();
+      if (!allowedFrom.contains(current)) {
+        MessageToast.showToast(
+          msg: closedStatuses.contains(current)
+              ? 'This order is already $current.'
+              : 'An order that is $current cannot be marked $status.',
+        );
         return false;
       }
 
-      // Extract userId for notifications
-      final String userId = orderData['userId'] as String;
-      final String displayOrderId =
-          orderData['orderId'] ?? orderId; // human-readable ID
+      final userId = data['userId'] as String;
+      final displayId = (data['orderId'] ?? id).toString();
 
-      // Revert product quantities
-      Map<String, int> productQuantities = {};
-
-      if (orderData.containsKey('productQuantities') &&
-          orderData['productQuantities'] != null) {
-        productQuantities = Map<String, int>.from(
-          orderData['productQuantities'],
-        );
+      if (restock) {
+        final quantities = _quantitiesFrom(data);
+        if (quantities.isNotEmpty) await _revertProductQuantities(quantities);
       }
 
-      if (productQuantities.isEmpty && orderData.containsKey('items')) {
-        final items = List<Map<String, dynamic>>.from(orderData['items']);
-        for (var item in items) {
-          final productId = item['productId'];
-          final quantity = item['quantity'] as int;
-          productQuantities[productId] =
-              (productQuantities[productId] ?? 0) + quantity;
-        }
-      }
-
-      if (productQuantities.isNotEmpty) {
-        await _revertProductQuantities(productQuantities);
-      }
-
-      // Update order status
-      await _firestore.collection('orders').doc(orderId).update({
-        'status': 'Cancelled',
+      await _firestore.collection('orders').doc(id).update({
+        'status': status,
+        'statusReason': reason,
+        'statusUpdatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Notification content
-      const String title = 'Order Cancelled.';
-      final String body = 'Your order #$displayOrderId has been cancelled.';
-
-      // Send push notification
-      final String? userToken = await _getUserToken(userId);
-      if (userToken != null) {
-        await LocalNotificationService.sendNotificationUsingApi(
-          token: userToken,
-          title: title,
-          body: body,
-          data: {'screen': 'order_detail', 'orderId': orderId},
-        );
-      } else {
-        print('User token not found, skipping push notification.');
-      }
-
-      // Create in-app notification
-      await _dataController.createNotification(
-        message: body,
+      await _notifyCustomer(
         userId: userId,
-        orderId: orderId,
-        isChat: false,
+        orderDocId: id,
+        title: title,
+        body: body(displayId),
       );
 
-      MessageToast.showToast(
-        msg: 'Order cancelled successfully. Quantities restored.',
-      );
+      MessageToast.showToast(msg: successMessage);
       return true;
     } catch (e) {
-      print('Error cancelling order: $e');
-      MessageToast.showToast(msg: 'Failed to cancel order: ${e.toString()}');
+      print('Error closing order as $status: $e');
+      MessageToast.showToast(msg: 'Failed to update order: ${e.toString()}');
       return false;
     } finally {
       isLoading(false);
     }
   }
 
-  // Method to revert product quantities
+  /// Admin cancels an accepted order. Stock is restored.
+  Future<bool> cancelOrder(String orderId, {String? reason}) => _closeOrder(
+    id: orderId,
+    status: 'Cancelled',
+    allowedFrom: const {'Pending', 'Accepted'},
+    reason: reason ?? 'Cancelled by admin',
+    restock: true,
+    title: 'Order Cancelled.',
+    body: (id) => 'Your order #$id has been cancelled.',
+    successMessage: 'Order cancelled. Quantities restored.',
+  );
+
+  /// Admin declines a pending order. Stock is restored.
+  Future<bool> rejectOrder(String orderId, {required String reason}) =>
+      _closeOrder(
+        id: orderId,
+        status: 'Rejected',
+        allowedFrom: const {'Pending'},
+        reason: reason,
+        restock: true,
+        title: 'Order Rejected 😔',
+        body: (id) => 'Your order #$id could not be fulfilled at this time.',
+        successMessage: 'Order rejected. Quantities restored.',
+      );
+
+  /// A delivered order comes back. Stock is only restored when [restock].
+  Future<bool> returnOrder(
+    String orderId, {
+    required String reason,
+    required bool restock,
+  }) => _closeOrder(
+    id: orderId,
+    status: 'Returned',
+    allowedFrom: const {'Delivered'},
+    reason: reason,
+    restock: restock,
+    title: 'Return Received',
+    body: (id) => 'We have received the return for your order #$id.',
+    successMessage: restock
+        ? 'Return recorded. Items added back to stock.'
+        : 'Return recorded. Stock was not changed.',
+  );
+
   Future<void> _revertProductQuantities(
     Map<String, int> productQuantities,
   ) async {
     final batch = _firestore.batch();
 
-    for (var entry in productQuantities.entries) {
-      final productId = entry.key;
-      final cancelledQuantity = entry.value;
-
-      final productRef = _firestore.collection('products').doc(productId);
+    for (final entry in productQuantities.entries) {
+      final productRef = _firestore.collection('products').doc(entry.key);
       final productDoc = await productRef.get();
 
       if (productDoc.exists) {
@@ -200,8 +319,8 @@ class OrderController extends GetxController {
             (data['stock'] as num?)?.toInt() ??
             0;
         final currentStock = (data['stock'] as num?)?.toInt() ?? currentTotal;
-        final newTotal = currentTotal + cancelledQuantity;
-        final newStock = currentStock + cancelledQuantity;
+        final newTotal = currentTotal + entry.value;
+        final newStock = currentStock + entry.value;
 
         batch.update(productRef, {
           'stock': newStock,
@@ -212,8 +331,11 @@ class OrderController extends GetxController {
     }
 
     await batch.commit();
-    print('Successfully reverted ${productQuantities.length} product(s)');
   }
+
+  // --------------------------------------------------------------------
+  // Forward status updates (Accepted / Delivered)
+  // --------------------------------------------------------------------
 
   Future<void> updateOrderStatus({
     required String id,
@@ -221,71 +343,42 @@ class OrderController extends GetxController {
     required String status,
   }) async {
     try {
-      // 1. Fetch Order to get userId
       final orderDoc = await _firestore.collection('orders').doc(id).get();
-      if (!orderDoc.exists) {
-        throw Exception('Order not found.');
-      }
+      if (!orderDoc.exists) throw Exception('Order not found.');
       final orderData = orderDoc.data() as Map<String, dynamic>;
       final String userId = orderData['userId'] as String;
 
-      // 2. Update status in Firestore
-      await _firestore.collection('orders').doc(id).update({'status': status});
+      await _firestore.collection('orders').doc(id).update({
+        'status': status,
+        'statusUpdatedAt': FieldValue.serverTimestamp(),
+      });
 
-      // 3. Define Notification Content
       String title;
       String body;
-
       switch (status) {
         case 'Accepted':
           title = 'Order Accepted! 🎉';
           body =
               'Your order #$orderId has been accepted and is being prepared.';
           break;
-        case 'Rejected':
-          title = 'Order Rejected 😔';
-          body = 'Your order #$orderId could not be fulfilled at this time.';
-          break;
         case 'Delivered':
           title = 'Order Delivered! 🚚';
           body = 'Your order #$orderId has been successfully delivered.';
-          break;
-        case 'Cancelled':
-          title = 'Order Cancelled.';
-          body = 'Your order #$orderId has been successfully cancelled.';
           break;
         default:
           title = 'Order Update';
           body = 'Your order #$orderId status updated to $status.';
       }
 
-      // 4. Send Push Notification
-      final String? userToken = await _getUserToken(userId);
-      if (userToken != null) {
-        // Assuming LocalNotificationService is imported as 'notifications'
-        await LocalNotificationService.sendNotificationUsingApi(
-          token: userToken,
-          title: title,
-          body: body,
-          data: {
-            'screen': 'order_detail', // For deep-linking
-            'orderId': id, // Send the Firestore Document ID
-          },
-        );
-      } else {
-        print('User token not found, skipping push notification.');
-      }
-
-      // 5. Create In-App Notification Record (for DataController listener)
-      await _dataController.createNotification(
-        message: body,
+      await _notifyCustomer(
         userId: userId,
-        orderId: id,
-        isChat: false, // This is an order update, not a chat message
+        orderDocId: id,
+        title: title,
+        body: body,
       );
 
-      // 6. UI Feedback
-      Get.back();
+      // The detail screen listens to the order live, so it stays open and
+      // shows the new status by itself.
       MessageToast.showToast(
         msg: 'Order status updated to $status successfully.',
       );

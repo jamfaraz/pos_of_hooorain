@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'controllers/notifications.dart';
 import 'controllers/theme_controller.dart';
 import 'firebase_options.dart';
 import 'services/admin_access_service.dart';
@@ -19,10 +18,6 @@ void main() async {
   Get.put(themeController);
   Get.put(AdminAccessService(), permanent: true);
 
-  final notificationService = LocalNotificationService();
-
-  notificationService.requestNotificationPermission();
-  notificationService.getDeviceToken();
 
   runApp(const MyApp());
 }
@@ -35,15 +30,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final LocalNotificationService notificationService =
-      LocalNotificationService();
-  @override
-  void initState() {
-    super.initState();
+ 
 
-    notificationService.firebaseInit(context);
-    notificationService.setupInteractMessage(context);
-  }
 
   @override
   Widget build(BuildContext context) {
