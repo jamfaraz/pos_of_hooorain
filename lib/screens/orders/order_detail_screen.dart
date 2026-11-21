@@ -299,7 +299,7 @@ class _OrderView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _hero(context, w),
+                  _header(context, w),
                   const SizedBox(height: 20),
                   if (wide)
                     Row(
@@ -325,70 +325,74 @@ class _OrderView extends StatelessWidget {
   }
 
   // --------------------------------------------------------------------
-  // Hero
+  // Header (light card, matches the sidebar / control-room look)
   // --------------------------------------------------------------------
 
-  Widget _hero(BuildContext context, double w) {
+  Widget _header(BuildContext context, double w) {
     final p = _P(context);
     final narrow = w < 560;
     final statusColor = _statusColor(context, order.status);
     final displayId = '#${order.orderId ?? order.id}';
-    final pad = narrow ? 18.0 : 28.0;
+    final forward = _forwardAction(context);
+
+    final backBtn = _Hover(
+      onTap: () => Get.back(),
+      builder: (h) => AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: h ? p.cs.primaryContainer : p.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: h ? Colors.transparent : p.line),
+        ),
+        child: Icon(
+          PhosphorIconsRegular.arrowLeft,
+          size: 20,
+          color: h ? p.cs.onPrimaryContainer : p.ink,
+        ),
+      ),
+    );
 
     final titleBlock = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'ORDERS',
-              style: p.t(11, w: FontWeight.w700, c: Colors.white54, ls: 1.4),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              PhosphorIconsRegular.caretRight,
-              size: 12,
-              color: Colors.white38,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'ORDER DETAILS',
-              style: p.t(11, w: FontWeight.w700, c: Colors.white, ls: 1.4),
-            ),
-          ],
+        Text(
+          'ORDERS  ›  ORDER DETAILS',
+          style: p.t(10.5, w: FontWeight.w700, c: p.muted, ls: 1.3),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 14,
-          runSpacing: 10,
+          spacing: 12,
+          runSpacing: 8,
           children: [
             Text(
               'Order $displayId',
-              style: p.t(
-                narrow ? 22 : 30,
-                w: FontWeight.w800,
-                c: Colors.white,
-                ls: -0.6,
-              ),
+              style: p.t(narrow ? 21 : 28, w: FontWeight.w800, ls: -0.5),
             ),
             _statusPill(p, order.status, statusColor),
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          'Placed on ${_formatDateTime(order.orderDate)}',
-          style: p.t(13, c: Colors.white60),
+        Row(
+          children: [
+            Icon(PhosphorIconsRegular.calendarBlank, size: 14, color: p.muted),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                'Placed on ${_formatDateTime(order.orderDate)}',
+                style: p.t(12.5, c: p.muted),
+              ),
+            ),
+          ],
         ),
       ],
     );
 
-    final forward = _forwardAction(context);
     final actions = Wrap(
       spacing: 10,
       runSpacing: 10,
-      alignment: WrapAlignment.end,
       children: [
         _ghostButton(
           icon: PhosphorIconsRegular.copy,
@@ -400,78 +404,30 @@ class _OrderView extends StatelessWidget {
             MessageToast.showToast(msg: 'Order ID copied');
           },
         ),
-        _ghostButton(
-          icon: PhosphorIconsRegular.arrowLeft,
-          label: 'Back to orders',
-          onTap: Get.back,
-        ),
         if (forward != null) forward,
       ],
     );
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [p.hero1, p.hero2],
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(narrow ? 16 : 24),
+      decoration: _cardDeco(p),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              backBtn,
+              SizedBox(width: narrow ? 12 : 18),
+              Expanded(child: titleBlock),
+              if (w >= 900) ...[const SizedBox(width: 20), actions],
+            ],
           ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -90,
-              top: -110,
-              child: Container(
-                width: 320,
-                height: 320,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: statusColor.withValues(alpha: 0.22),
-                ),
-              ),
-            ),
-            Positioned(
-              left: -70,
-              bottom: -130,
-              child: Container(
-                width: 260,
-                height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.04),
-                ),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(pad),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (w >= 900)
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: titleBlock),
-                        const SizedBox(width: 20),
-                        Flexible(child: actions),
-                      ],
-                    )
-                  else ...[
-                    titleBlock,
-                    const SizedBox(height: 16),
-                    actions,
-                  ],
-                  SizedBox(height: narrow ? 20 : 26),
-                  _heroStats(p, narrow),
-                ],
-              ),
-            ),
-          ],
-        ),
+          if (w < 900) ...[const SizedBox(height: 16), actions],
+          SizedBox(height: narrow ? 16 : 22),
+          _heroStats(p, narrow),
+        ],
       ),
     );
   }
@@ -505,59 +461,7 @@ class _OrderView extends StatelessWidget {
             for (final s in stats)
               SizedBox(
                 width: itemW,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: narrow ? 12 : 16,
-                    vertical: 13,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: s.$4 ? 0.14 : 0.07),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(s.$1, size: 17, color: Colors.white),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              s.$2.toUpperCase(),
-                              style: p.t(
-                                9.5,
-                                w: FontWeight.w700,
-                                c: Colors.white54,
-                                ls: 1.1,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              s.$3,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: p.t(
-                                s.$4 ? 16 : 13.5,
-                                w: FontWeight.w800,
-                                c: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                child: _statTile(p, s.$1, s.$2, s.$3, hero: s.$4, narrow: narrow),
               ),
           ],
         );
@@ -565,13 +469,64 @@ class _OrderView extends StatelessWidget {
     );
   }
 
+  Widget _statTile(
+    _P p,
+    IconData icon,
+    String label,
+    String value, {
+    required bool hero,
+    required bool narrow,
+  }) {
+    final bg = hero ? p.cs.primaryContainer : p.soft;
+    final fg = hero ? p.cs.onPrimaryContainer : p.ink;
+    final sub = hero ? p.cs.onPrimaryContainer.withValues(alpha: 0.7) : p.muted;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: narrow ? 12 : 14, vertical: 13),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: hero ? Colors.transparent : p.line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: hero ? Colors.white.withValues(alpha: 0.55) : p.surface,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 17, color: hero ? fg : p.primary),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.toUpperCase(),
+                  style: p.t(9.5, w: FontWeight.w800, c: sub, ls: 1.1),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: p.t(hero ? 16 : 13.5, w: FontWeight.w800, c: fg),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _statusPill(_P p, String status, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.28),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -584,7 +539,7 @@ class _OrderView extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             status.toUpperCase(),
-            style: p.t(11, w: FontWeight.w800, c: Colors.white, ls: 1),
+            style: p.t(11, w: FontWeight.w800, c: color, ls: 1),
           ),
         ],
       ),
@@ -598,48 +553,59 @@ class _OrderView extends StatelessWidget {
     bool filled = false,
     Color? fill,
   }) {
-    return _Hover(
-      onTap: onTap,
-      builder: (hovering) => AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        transform: Matrix4.translationValues(0, hovering && filled ? -1.5 : 0, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: filled
-              ? (fill ?? Colors.white)
-              : Colors.white.withValues(alpha: hovering ? 0.16 : 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          boxShadow: filled
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: hovering ? 0.3 : 0.18),
-                    blurRadius: hovering ? 22 : 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: filled ? Colors.black87 : Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: filled ? Colors.black87 : Colors.white,
+    return Builder(
+      builder: (context) {
+        final p = _P(context);
+        final bg = filled ? (fill ?? p.primary) : p.surface;
+        final fg = filled ? p.cs.onPrimary : p.ink;
+        return _Hover(
+          onTap: onTap,
+          builder: (h) => AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            transform: Matrix4.translationValues(0, h && filled ? -1.5 : 0, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: filled
+                  ? bg
+                  : (h ? p.cs.primaryContainer : p.surface),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: filled
+                    ? Colors.transparent
+                    : (h ? Colors.transparent : p.line),
               ),
+              boxShadow: filled
+                  ? [
+                      BoxShadow(
+                        color: bg.withValues(alpha: h ? 0.4 : 0.25),
+                        blurRadius: h ? 20 : 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
             ),
-          ],
-        ),
-      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 16,
+                  color: (!filled && h) ? p.cs.onPrimaryContainer : fg,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: (!filled && h) ? p.cs.onPrimaryContainer : fg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -948,217 +914,8 @@ class _OrderView extends StatelessWidget {
     );
   }
 
-  // --------------------------------------------------------------------
-  // Items (table on wide screens, cards on narrow)
-  // --------------------------------------------------------------------
 
-  Widget _itemsCard(BuildContext context) {
-    final p = _P(context);
-    return _card(
-      context,
-      padding: EdgeInsets.zero,
-      child: LayoutBuilder(
-        builder: (context, box) {
-          final compact = box.maxWidth < 640;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
-                child: _cardHeader(
-                  context,
-                  PhosphorIconsRegular.shoppingBag,
-                  'Order items',
-                  trailing: _chip(p, '${order.items.length} items'),
-                ),
-              ),
-              if (!compact)
-                Container(
-                  color: p.soft,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 11,
-                  ),
-                  child: Row(
-                    children: [
-                      SizedBox(width: 34, child: _th(p, '#')),
-                      Expanded(child: _th(p, 'PRODUCT')),
-                      SizedBox(width: 110, child: _th(p, 'UNIT PRICE')),
-                      SizedBox(width: 70, child: _th(p, 'QTY')),
-                      SizedBox(width: 120, child: _th(p, 'TOTAL', right: true)),
-                    ],
-                  ),
-                ),
-              Divider(height: 1, color: p.line),
-              for (var i = 0; i < order.items.length; i++) ...[
-                _itemRow(context, order.items[i], i + 1, compact),
-                if (i != order.items.length - 1) Divider(height: 1, color: p.line),
-              ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _th(_P p, String text, {bool right = false}) => Text(
-    text,
-    textAlign: right ? TextAlign.right : TextAlign.left,
-    style: p.t(10, w: FontWeight.w800, c: p.muted, ls: 1.2),
-  );
-
-  Widget _chip(_P p, String text) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: p.soft,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: p.line),
-    ),
-    child: Text(text, style: p.t(11.5, w: FontWeight.w700, c: p.muted)),
-  );
-
-  Widget _itemRow(
-    BuildContext context,
-    OrderItem item,
-    int number,
-    bool compact,
-  ) {
-    final p = _P(context);
-    return _Hover(
-      onTap: () => Get.to(() => FullImageScreen(imageUrl: item.imageUrl ?? '')),
-      builder: (hovering) => AnimatedContainer(
-        duration: const Duration(milliseconds: 140),
-        color: hovering ? p.primary.withValues(alpha: 0.04) : Colors.transparent,
-        padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 22, vertical: 13),
-        child: compact
-            ? Row(
-                children: [
-                  _thumb(context, item),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.productName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: p.t(13, w: FontWeight.w700, h: 1.3),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${_rs(item.price)} × ${item.quantity}',
-                          style: p.t(11.5, c: p.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _rs(item.price * item.quantity),
-                    style: p.t(13, w: FontWeight.w800),
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  SizedBox(
-                    width: 34,
-                    child: Text(
-                      '$number'.padLeft(2, '0'),
-                      style: p.t(12, w: FontWeight.w700, c: p.muted),
-                    ),
-                  ),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        _thumb(context, item),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            item.productName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: p.t(13.5, w: FontWeight.w700, h: 1.35),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 110,
-                    child: Text(_rs(item.price), style: p.t(12.5, c: p.muted)),
-                  ),
-                  SizedBox(
-                    width: 70,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: p.soft,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: p.line),
-                        ),
-                        child: Text(
-                          '×${item.quantity}',
-                          style: p.t(12, w: FontWeight.w800),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    width: 120,
-                    child: Text(
-                      _rs(item.price * item.quantity),
-                      textAlign: TextAlign.right,
-                      style: p.t(13.5, w: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _thumb(BuildContext context, OrderItem item) {
-    final p = _P(context);
-    final fallback = Icon(
-      PhosphorIconsRegular.image,
-      size: 20,
-      color: p.muted,
-    );
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(13),
-        color: p.soft,
-        border: Border.all(color: p.line),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-            ? Image.network(
-                item.imageUrl!,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, progress) {
-                  if (progress == null) return child;
-                  return LoadingPlaceholder.fromColors(
-                    baseColor: Colors.grey[300]!,
-                    highlightColor: Colors.grey[100]!,
-                    child: Container(color: p.surface),
-                  );
-                },
-                errorBuilder: (_, _, _) => Center(child: fallback),
-              )
-            : Center(child: fallback),
-      ),
-    );
-  }
+  Widget _itemsCard(BuildContext context) => _ItemsCard(items: order.items);
 
   // --------------------------------------------------------------------
   // Delivery + bill
@@ -1644,6 +1401,7 @@ class _OrderView extends StatelessWidget {
 
   Widget _summaryCard(BuildContext context) {
     final p = _P(context);
+    final onPc = p.cs.onPrimaryContainer;
     Widget row(String label, double amount, {bool negative = false}) => Padding(
       padding: const EdgeInsets.only(bottom: 11),
       child: Row(
@@ -1672,11 +1430,7 @@ class _OrderView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [p.hero1, p.hero2],
-              ),
+              color: p.cs.primaryContainer,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -1690,7 +1444,7 @@ class _OrderView extends StatelessWidget {
                         style: p.t(
                           10,
                           w: FontWeight.w800,
-                          c: Colors.white54,
+                          c: onPc.withValues(alpha: 0.7),
                           ls: 1.2,
                         ),
                       ),
@@ -1700,12 +1454,7 @@ class _OrderView extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           _rs(order.total),
-                          style: p.t(
-                            24,
-                            w: FontWeight.w800,
-                            c: Colors.white,
-                            ls: -0.4,
-                          ),
+                          style: p.t(24, w: FontWeight.w800, c: onPc, ls: -0.4),
                         ),
                       ),
                     ],
@@ -1718,12 +1467,12 @@ class _OrderView extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: Colors.white.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       order.paymentMethod,
-                      style: p.t(11, w: FontWeight.w700, c: Colors.white),
+                      style: p.t(11, w: FontWeight.w700, c: onPc),
                     ),
                   ),
               ],
@@ -2172,13 +1921,13 @@ class _OrderView extends StatelessWidget {
       padding: padding ?? const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: p.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: p.line),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -2198,10 +1947,10 @@ class _OrderView extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: p.primary.withValues(alpha: 0.1),
+            color: p.cs.primaryContainer,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 17, color: p.primary),
+          child: Icon(icon, size: 17, color: p.cs.onPrimaryContainer),
         ),
         const SizedBox(width: 11),
         Text(title, style: p.t(15, w: FontWeight.w800, ls: -0.1)),
@@ -2465,6 +2214,337 @@ class _HoverState extends State<_Hover> {
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
         child: widget.builder(_hovering),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Shared card look
+// ============================================================================
+
+BoxDecoration _cardDeco(_P p) => BoxDecoration(
+  color: p.surface,
+  borderRadius: BorderRadius.circular(24),
+  border: Border.all(color: p.line),
+  boxShadow: [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.04),
+      blurRadius: 24,
+      offset: const Offset(0, 8),
+    ),
+  ],
+);
+
+Widget _itemThumb(BuildContext context, OrderItem item) {
+  final p = _P(context);
+  final fallback = Icon(PhosphorIconsRegular.image, size: 20, color: p.muted);
+  return Container(
+    width: 52,
+    height: 52,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(14),
+      color: p.soft,
+      border: Border.all(color: p.line),
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(13),
+      child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+          ? Image.network(
+              item.imageUrl!,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return LoadingPlaceholder.fromColors(
+                  baseColor: Colors.grey[300]!,
+                  highlightColor: Colors.grey[100]!,
+                  child: Container(color: p.surface),
+                );
+              },
+              errorBuilder: (_, _, _) => Center(child: fallback),
+            )
+          : Center(child: fallback),
+    ),
+  );
+}
+
+// ============================================================================
+// Items: first 3 shown, "See more" expands the rest
+// ============================================================================
+
+class _ItemsCard extends StatefulWidget {
+  const _ItemsCard({required this.items});
+  final List<OrderItem> items;
+
+  @override
+  State<_ItemsCard> createState() => _ItemsCardState();
+}
+
+class _ItemsCardState extends State<_ItemsCard> {
+  static const int _preview = 3;
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _P(context);
+    final items = widget.items;
+    final hasMore = items.length > _preview;
+    final hidden = items.length - _preview;
+    final shown = (_expanded || !hasMore) ? items : items.sublist(0, _preview);
+    final totalQty = items.fold<num>(0, (s, i) => s + i.quantity);
+    final itemsTotal = items.fold<double>(
+      0,
+      (s, i) => s + i.price * i.quantity,
+    );
+
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: _cardDeco(p),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final compact = box.maxWidth < 640;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: p.cs.primaryContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        PhosphorIconsRegular.shoppingBag,
+                        size: 17,
+                        color: p.cs.onPrimaryContainer,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    Text(
+                      'Order items',
+                      style: p.t(15, w: FontWeight.w800, ls: -0.1),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: p.soft,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: p.line),
+                      ),
+                      child: Text(
+                        '${items.length} items · $totalQty units',
+                        style: p.t(11.5, w: FontWeight.w700, c: p.muted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!compact)
+                Container(
+                  color: p.soft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 11,
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(width: 34, child: _th(p, '#')),
+                      Expanded(child: _th(p, 'PRODUCT')),
+                      SizedBox(width: 110, child: _th(p, 'UNIT PRICE')),
+                      SizedBox(width: 70, child: _th(p, 'QTY')),
+                      SizedBox(width: 120, child: _th(p, 'TOTAL', right: true)),
+                    ],
+                  ),
+                ),
+              Divider(height: 1, color: p.line),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < shown.length; i++) ...[
+                      _row(context, shown[i], i + 1, compact),
+                      if (i != shown.length - 1) Divider(height: 1, color: p.line),
+                    ],
+                  ],
+                ),
+              ),
+              if (hasMore) ...[
+                Divider(height: 1, color: p.line),
+                _toggle(p, hidden),
+              ],
+              Container(
+                color: p.soft,
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 16 : 22,
+                  vertical: 14,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Items total', style: p.t(13, c: p.muted)),
+                    Text(
+                      _rs(itemsTotal),
+                      style: p.t(15, w: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _toggle(_P p, int hidden) {
+    final fg = p.cs.onPrimaryContainer;
+    return _Hover(
+      onTap: () => setState(() => _expanded = !_expanded),
+      builder: (h) => AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        color: p.cs.primaryContainer.withValues(alpha: h ? 0.75 : 0.4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _expanded
+                  ? 'Show less'
+                  : 'See $hidden more ${hidden == 1 ? 'item' : 'items'}',
+              style: p.t(13, w: FontWeight.w800, c: fg),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              _expanded
+                  ? PhosphorIconsBold.caretUp
+                  : PhosphorIconsBold.caretDown,
+              size: 14,
+              color: fg,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _th(_P p, String text, {bool right = false}) => Text(
+    text,
+    textAlign: right ? TextAlign.right : TextAlign.left,
+    style: p.t(10, w: FontWeight.w800, c: p.muted, ls: 1.2),
+  );
+
+  Widget _row(BuildContext context, OrderItem item, int number, bool compact) {
+    final p = _P(context);
+    return _Hover(
+      onTap: () => Get.to(() => FullImageScreen(imageUrl: item.imageUrl ?? '')),
+      builder: (hovering) => AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        color: hovering ? p.primary.withValues(alpha: 0.04) : Colors.transparent,
+        padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 22, vertical: 13),
+        child: compact
+            ? Row(
+                children: [
+                  _itemThumb(context, item),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.productName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: p.t(13, w: FontWeight.w700, h: 1.3),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_rs(item.price)} × ${item.quantity}',
+                          style: p.t(11.5, c: p.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _rs(item.price * item.quantity),
+                    style: p.t(13, w: FontWeight.w800),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  SizedBox(
+                    width: 34,
+                    child: Text(
+                      '$number'.padLeft(2, '0'),
+                      style: p.t(12, w: FontWeight.w700, c: p.muted),
+                    ),
+                  ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        _itemThumb(context, item),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            item.productName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: p.t(13.5, w: FontWeight.w700, h: 1.35),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    width: 110,
+                    child: Text(_rs(item.price), style: p.t(12.5, c: p.muted)),
+                  ),
+                  SizedBox(
+                    width: 70,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: p.cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '×${item.quantity}',
+                          style: p.t(
+                            12,
+                            w: FontWeight.w800,
+                            c: p.cs.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      _rs(item.price * item.quantity),
+                      textAlign: TextAlign.right,
+                      style: p.t(13.5, w: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

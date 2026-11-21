@@ -13,6 +13,7 @@ class UsersController extends GetxController {
   var unverifiedUsers = [].obs;
   var isLoading = false.obs;
   var errorMessage = ''.obs;
+  final searchQuery = ''.obs;
 
   // Single user observable
   var selectedUser = Rxn<UserModel>();
@@ -30,13 +31,20 @@ class UsersController extends GetxController {
     try {
       final querySnapshot = await _firestore.collection('users').get();
       users.value = querySnapshot.docs;
-      
+
       // Filter users by different categories
-      bannedUsers.value = users.where((user) => user['isBanned'] == true).toList();
-      activeUsers.value = users.where((user) => user['isBanned'] == false).toList();
-      verifiedUsers.value = users.where((user) => user['isVerified'] == true).toList();
-      unverifiedUsers.value = users.where((user) => user['isVerified'] == false).toList();
-      
+      bannedUsers.value = users
+          .where((user) => user['isBanned'] == true)
+          .toList();
+      activeUsers.value = users
+          .where((user) => user['isBanned'] == false)
+          .toList();
+      verifiedUsers.value = users
+          .where((user) => user['isVerified'] == true)
+          .toList();
+      unverifiedUsers.value = users
+          .where((user) => user['isVerified'] == false)
+          .toList();
     } catch (e) {
       errorMessage('Failed to load users: $e');
       print(e);
@@ -55,7 +63,7 @@ class UsersController extends GetxController {
     try {
       isUserLoading.value = true;
       errorMessage.value = '';
-      
+
       // First try: Fetch by document ID
       final docSnapshot = await _firestore
           .collection('users')
@@ -98,7 +106,6 @@ class UsersController extends GetxController {
       errorMessage.value = 'User not found with ID: $userId';
       selectedUser.value = null;
       return null;
-
     } catch (e) {
       errorMessage.value = 'Error fetching user: ${e.toString()}';
       selectedUser.value = null;
@@ -108,7 +115,6 @@ class UsersController extends GetxController {
       isUserLoading.value = false;
     }
   }
-
 
   Future<void> toggleBanStatus(String userId, bool isBanned) async {
     try {
@@ -129,6 +135,19 @@ class UsersController extends GetxController {
       fetchUsers();
     } catch (e) {
       Get.snackbar('Error', 'Failed to update verification status: $e');
+    }
+  }
+
+  Future<void> updateShopRequestStatus(String userId, String status) async {
+    try {
+      final updates = <String, dynamic>{'shopRequestStatus': status};
+      if (status.toLowerCase() == 'approved') {
+        updates['userType'] = 'shop';
+      }
+      await _firestore.collection('users').doc(userId).update(updates);
+      await fetchUsers();
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to update shop request: $e');
     }
   }
 }

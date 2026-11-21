@@ -17,6 +17,7 @@ import '../screens/offers/offers_screen.dart';
 import '../screens/riders/riders_screen.dart';
 import '../screens/orders/order_detail_screen.dart';
 import '../screens/expenses/expenses_screen.dart';
+import '../screens/customers/customers_screen.dart';
 import '../screens/setting/store_setting_screen.dart';
 import 'admin_route_guard.dart';
 import 'auth_gate.dart';
@@ -32,6 +33,7 @@ import '../bindings/inventory_binding.dart';
 import '../bindings/reports_binding.dart';
 import '../bindings/billing_binding.dart';
 import '../bindings/expense_binding.dart';
+import '../bindings/users_binding.dart';
 import '../models/order_model.dart';
 
 abstract final class AppRoutes {
@@ -84,7 +86,18 @@ abstract final class AppRoutes {
     _protected('/offers', const OffersScreen(), binding: OffersBinding()),
     _protected('/riders', const RidersScreen(), binding: RidersBinding()),
     _protected('/expenses', const ExpensesScreen(), binding: ExpenseBinding()),
-    _protected('/store-setup', const StoreSetupScreen(), binding: StoreSetupBinding()),
+    _protected(
+      '/customers',
+      const CustomersScreen(),
+      binding: UsersBinding(),
+      topBarLeading: const CustomersSearchField(),
+      topBarAction: const CustomersNewBillButton(),
+    ),
+    _protected(
+      '/store-setup',
+      const StoreSetupScreen(),
+      binding: StoreSetupBinding(),
+    ),
     _protected(
       '/item-profit',
       const ItemProfitScreen(),
@@ -104,13 +117,18 @@ abstract final class AppRoutes {
     Widget screen, {
     Bindings? binding,
     Widget? topBarAction,
+    Widget? topBarLeading,
   }) {
     return GetPage(
       name: path,
       binding: binding,
       transition: Transition.noTransition,
       page: () => AdminRouteGuard(
-        child: AppShell(topBarAction: topBarAction, child: screen),
+        child: AppShell(
+          topBarLeading: topBarLeading,
+          topBarAction: topBarAction,
+          child: screen,
+        ),
       ),
     );
   }

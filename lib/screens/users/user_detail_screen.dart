@@ -1,738 +1,1379 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../widgets/loading_placeholder.dart';
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:hoorain_pos/widgets/full_image.dart';
-import '../../constants.dart';
-import '../../widgets/backbutton.dart';
-import 'user_detail_loading.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-class UserDetailScreen extends StatefulWidget {
-  final String userId;
+import '../../controllers/user_detail_controller.dart';
+import '../../models/order_model.dart';
+import '../../utils/money.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_loader.dart';
+import '../../widgets/app_shell.dart';
+import '../../widgets/full_image.dart';
+import '../../widgets/retry_widget.dart';
 
-  const UserDetailScreen({Key? key, required this.userId}) : super(key: key);
+// ----------------------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------------------
 
-  @override
-  _UserDetailScreenState createState() => _UserDetailScreenState();
+String _text(Object? value) => value == null ? '' : '$value'.trim();
+
+String _or(String value, [String fallback = 'Not provided']) =>
+    value.isEmpty ? fallback : value;
+
+typedef _StatusInfo = ({String label, Color color});
+
+_StatusInfo _statusInfo(ColorScheme cs, String status) => switch (status) {
+  UserDetailController.verified => (label: 'Verified', color: cs.primary),
+  UserDetailController.rejected => (label: 'Rejected', color: cs.error),
+  _ => (label: 'Not verified', color: cs.secondary),
+};
+
+Color _orderColor(ColorScheme cs, String status) {
+  final s = status.toLowerCase();
+  if (s.contains('cancel') || s.contains('reject') || s.contains('return')) {
+    return cs.error;
+  }
+  if (s.contains('deliver') || s.contains('complete')) return cs.primary;
+  if (s.contains('pending')) return cs.secondary;
+  return cs.onSurfaceVariant;
 }
 
-class _UserDetailScreenState extends State<UserDetailScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  bool isLoading = true;
-  Map<String, dynamic>? userData;
+String _currentStatus(Map<String, dynamic> data) {
+  final value = _text(data['profileStatus']);
+  return value.isEmpty ? UserDetailController.notVerified : value;
+}
+
+BoxDecoration _panel(BuildContext context) {
+  final theme = Theme.of(context);
+  return BoxDecoration(
+    color: theme.colorScheme.surface,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(color: theme.dividerColor),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.04),
+        blurRadius: 20,
+        offset: const Offset(0, 6),
+      ),
+    ],
+  );
+}
+
+Future<void> _changeStatus(
+  BuildContext context,
+  UserDetailController c,
+  String current,
+  String value,
+) async {
+  if (current == value) return;
+  final cs = Theme.of(context).colorScheme;
+  final title = UserDetailController.labelFor(value);
+  final message = switch (value) {
+    UserDetailController.verified =>
+      'This customer will be able to place cash on delivery orders.',
+    UserDetailController.rejected =>
+      'This customer will not be able to use cash on delivery.',
+    _ => 'This customer will need another review before cash on delivery.',
+  };
+
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('Mark as $title?'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Text(message),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: value == UserDetailController.rejected
+              ? FilledButton.styleFrom(backgroundColor: cs.error)
+              : null,
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
+  if (ok == true) await c.setStatus(value);
+}
+
+// ----------------------------------------------------------------------------
+// Screen
+// ----------------------------------------------------------------------------
+
+class UserDetailScreen extends StatefulWidget {
+  const UserDetailScreen({super.key, required this.userId});
+
+  final String userId;
+
+  @override
+  State<UserDetailScreen> createState() => _UserDetailScreenState();
+}
+
+class _UserDetailScreenState extends State<UserDetailScreen> {
+  late final UserDetailController c;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _fetchUserData();
+    c = Get.put(UserDetailController(widget.userId), tag: widget.userId);
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    Get.delete<UserDetailController>(tag: widget.userId);
     super.dispose();
   }
 
-  Future<void> _fetchUserData() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .get();
-
-      if (doc.exists) {
-        setState(() {
-          userData = doc.data();
-          isLoading = false;
-        });
-        _animationController.forward();
-      }
-    } catch (e) {
-      setState(() {
-        isLoading = false;
-      });
-      Get.snackbar(
-        'Error',
-        'Failed to load user data',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
+  @override
+  Widget build(BuildContext context) {
+    return AppShell(
+      topBarLeading: const _DetailTopBar(),
+      child: SafeArea(
+        child: Obx(() {
+          if (c.loading.value && c.user.value == null) {
+            return const AppLoader(label: 'Loading customer details...');
+          }
+          if (c.error.value != null) {
+            return ErrorRetryWidget(
+              errorMessage: c.error.value!,
+              onRetry: () => c.load(),
+            );
+          }
+          final data = c.user.value;
+          if (data == null) return const _NotFound();
+          return _Content(c: c, data: data);
+        }),
+      ),
+    );
   }
+}
 
-  Future<void> _updateProfileStatus(String status) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.userId)
-          .update({
-            'profileStatus': status,
-            'isVerified': status == 'verified',
-          });
+class _DetailTopBar extends StatelessWidget {
+  const _DetailTopBar();
 
-      setState(() {
-        userData!['profileStatus'] = status;
-        userData!['isVerified'] = status == 'verified';
-      });
-
-      Get.snackbar(
-        'Success',
-        'Profile status updated to ${status.toUpperCase()}',
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-        icon: Icon(Icons.check_circle, color: Colors.white),
-      );
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to update status',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
-  }
-
-  void _showStatusDialog() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        IconButton(
+          tooltip: 'Back to customers',
+          onPressed: Get.back,
+          icon: const Icon(PhosphorIconsRegular.arrowLeft, size: 19),
         ),
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 50.w,
-              height: 5.h,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(10.r),
+        const SizedBox(width: 8),
+        Text(
+          'Customer profile',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotFound extends StatelessWidget {
+  const _NotFound();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            PhosphorIconsRegular.userMinus,
+            size: 44,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 14),
+          Text('Customer not found', style: theme.textTheme.titleLarge),
+          const SizedBox(height: 6),
+          Text(
+            'This account may have been deleted.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 18),
+          AppButton(
+            label: 'Go back',
+            style: AppButtonStyle.ghost,
+            small: true,
+            icon: const Icon(PhosphorIconsRegular.arrowLeft, size: 16),
+            onPressed: Get.back,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Page layout
+// ----------------------------------------------------------------------------
+
+class _Content extends StatelessWidget {
+  const _Content({required this.c, required this.data});
+
+  final UserDetailController c;
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = _or(_text(data['fullName']), 'Unnamed customer');
+
+    return LayoutBuilder(
+      builder: (context, box) {
+        final wide = box.maxWidth >= 1000;
+        final pad = box.maxWidth >= 720 ? 32.0 : 16.0;
+
+        final main = <Widget>[
+          _PhotoViewer(
+            locationUrl: _text(data['locationImage']),
+            profileUrl: _text(data['image']),
+          ),
+          const SizedBox(height: 22),
+          _AddressCard(c: c),
+        ];
+        final side = <Widget>[
+          _ChecklistCard(data: data),
+          const SizedBox(height: 22),
+          _StatsGrid(c: c),
+        ];
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(pad, 24, pad, 40),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1280),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TopBar(name: name),
+                  const SizedBox(height: 20),
+                  _IdentityStrip(c: c, data: data),
+                  const SizedBox(height: 22),
+                  if (wide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 8,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: main,
+                          ),
+                        ),
+                        const SizedBox(width: 22),
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: side,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [...main, const SizedBox(height: 22), ...side],
+                    ),
+                  const SizedBox(height: 22),
+                  _OrdersTable(c: c),
+                ],
               ),
             ),
-            SizedBox(height: 24.h),
-            Text(
-              'Update Profile Status',
-              style: GoogleFonts.inter(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.w700,
-                color: kblack,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    return Row(
+      children: [
+        Text(
+          'Customers',
+          style: theme.textTheme.bodyMedium?.copyWith(color: muted),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Icon(PhosphorIconsRegular.caretRight, size: 13, color: muted),
+        ),
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Identity strip with the decision buttons
+// ----------------------------------------------------------------------------
+
+class _IdentityStrip extends StatelessWidget {
+  const _IdentityStrip({required this.c, required this.data});
+
+  final UserDetailController c;
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final name = _or(_text(data['fullName']), 'Unnamed customer');
+    final current = _currentStatus(data);
+    final status = _statusInfo(cs, current);
+    final createdAt = data['createdAt'] is Timestamp
+        ? (data['createdAt'] as Timestamp).toDate()
+        : null;
+
+    final meta = <String>[
+      if (_text(data['uniqueId']).isNotEmpty) _text(data['uniqueId']),
+      if (_text(data['email']).isNotEmpty) _text(data['email']),
+      if (_text(data['phoneNumber']).isNotEmpty) _text(data['phoneNumber']),
+      if (createdAt != null)
+        'Joined ${DateFormat('d MMM yyyy').format(createdAt)}',
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: _panel(context),
+      child: Wrap(
+        spacing: 20,
+        runSpacing: 18,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: WrapAlignment.spaceBetween,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Avatar(url: _text(data['image']), name: name, size: 68),
+                const SizedBox(width: 18),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            name,
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 26,
+                            ),
+                          ),
+                          _Pill(label: status.label, color: status.color),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        meta.join('   •   '),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _DecisionButtons(c: c, current: current),
+        ],
+      ),
+    );
+  }
+}
+
+class _DecisionButtons extends StatelessWidget {
+  const _DecisionButtons({required this.c, required this.current});
+
+  final UserDetailController c;
+  final String current;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Obx(() {
+      final busy = c.updatingStatus.value;
+      final locked = busy != null;
+
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: cs.error,
+              side: BorderSide(color: cs.error.withValues(alpha: 0.45)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            SizedBox(height: 24.h),
-            _buildStatusOption(
-              'Verified',
-              'User is verified and can place COD orders',
-              Icons.verified_user_rounded,
-              Colors.green,
-              'verified',
+            onPressed: locked || current == UserDetailController.rejected
+                ? null
+                : () => _changeStatus(
+                    context,
+                    c,
+                    current,
+                    UserDetailController.rejected,
+                  ),
+            child: Text(
+              busy == UserDetailController.rejected ? 'Saving…' : 'Reject',
             ),
-            SizedBox(height: 12.h),
-            _buildStatusOption(
-              'Not Verified',
-              'User needs verification before COD',
-              Icons.pending_rounded,
-              Colors.orange,
-              'notVerified',
+          ),
+          AppButton(
+            label: busy == UserDetailController.notVerified
+                ? 'Saving…'
+                : 'Keep pending',
+            style: AppButtonStyle.ghost,
+            onPressed: locked || current == UserDetailController.notVerified
+                ? null
+                : () => _changeStatus(
+                    context,
+                    c,
+                    current,
+                    UserDetailController.notVerified,
+                  ),
+          ),
+          AppButton(
+            label: busy == UserDetailController.verified
+                ? 'Saving…'
+                : current == UserDetailController.verified
+                ? 'Verified'
+                : 'Approve and enable cash on delivery',
+            icon: Icon(
+              current == UserDetailController.verified
+                  ? PhosphorIconsFill.sealCheck
+                  : PhosphorIconsRegular.shieldCheck,
+              size: 18,
             ),
-            SizedBox(height: 12.h),
-            _buildStatusOption(
-              'Rejected',
-              'User verification rejected',
-              Icons.cancel_rounded,
-              Colors.red,
-              'rejected',
-            ),
-            SizedBox(height: 24.h),
-          ],
+            onPressed: locked || current == UserDetailController.verified
+                ? null
+                : () => _changeStatus(
+                    context,
+                    c,
+                    current,
+                    UserDetailController.verified,
+                  ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.url, required this.name, required this.size});
+
+  final String url;
+  final String name;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+
+    final fallback = Container(
+      color: cs.primaryContainer,
+      alignment: Alignment.center,
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.w800,
+          color: cs.onPrimaryContainer,
+        ),
+      ),
+    );
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: ClipOval(
+        child: url.isEmpty
+            ? fallback
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => fallback,
+                loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : fallback,
+              ),
+      ),
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
         ),
       ),
     );
   }
+}
 
-  Widget _buildStatusOption(
-    String title,
-    String subtitle,
-    IconData icon,
-    Color color,
-    String status,
-  ) {
-    final isSelected = userData!['profileStatus'] == status;
-    return InkWell(
-      onTap: () {
-        Navigator.pop(context);
-        _updateProfileStatus(status);
-      },
-      borderRadius: BorderRadius.circular(16.r),
-      child: Container(
-        padding: EdgeInsets.all(16.w),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withAlpha(25) : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: isSelected ? color : Colors.grey.shade200,
-            width: isSelected ? 2 : 1,
+// ----------------------------------------------------------------------------
+// Photo viewer
+// ----------------------------------------------------------------------------
+
+class _PhotoViewer extends StatefulWidget {
+  const _PhotoViewer({required this.locationUrl, required this.profileUrl});
+
+  final String locationUrl;
+  final String profileUrl;
+
+  @override
+  State<_PhotoViewer> createState() => _PhotoViewerState();
+}
+
+class _PhotoViewerState extends State<_PhotoViewer> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final photos = <({String title, String url, IconData icon})>[
+      (
+        title: 'Location photo',
+        url: widget.locationUrl,
+        icon: PhosphorIconsRegular.mapPin,
+      ),
+      (
+        title: 'Profile photo',
+        url: widget.profileUrl,
+        icon: PhosphorIconsRegular.user,
+      ),
+    ];
+    final current = photos[_index];
+    final hasImage = current.url.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      decoration: _panel(context),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < photos.length; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _TabChip(
+                          icon: photos[i].icon,
+                          label: photos[i].title,
+                          selected: i == _index,
+                          onTap: () => setState(() => _index = i),
+                        ),
+                      ),
+                  ],
+                ),
+                AppButton(
+                  label: 'View full size',
+                  style: AppButtonStyle.ghost,
+                  small: true,
+                  icon: const Icon(
+                    PhosphorIconsRegular.arrowsOutSimple,
+                    size: 15,
+                  ),
+                  onPressed: hasImage
+                      ? () =>
+                            Get.to(() => FullImageScreen(imageUrl: current.url))
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: theme.dividerColor),
+          Padding(
+            padding: const EdgeInsets.all(18),
+            child: AspectRatio(
+              aspectRatio: 1.78,
+              child: _PhotoSurface(url: current.url, caption: current.title),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+            child: Row(
+              children: [
+                for (var i = 0; i < photos.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _Thumb(
+                      url: photos[i].url,
+                      selected: i == _index,
+                      label: photos[i].title,
+                      onTap: () => setState(() => _index = i),
+                      fallbackColor: cs.surfaceContainerHighest,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabChip extends StatelessWidget {
+  const _TabChip({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? cs.primaryContainer : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected ? cs.primary : cs.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                  color: selected ? cs.onPrimaryContainer : cs.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _PhotoSurface extends StatelessWidget {
+  const _PhotoSurface({required this.url, required this.caption});
+
+  final String url;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final hasImage = url.isNotEmpty;
+
+    Widget empty(IconData icon, String text) => Container(
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 34, color: cs.onSurfaceVariant),
+          const SizedBox(height: 8),
+          Text(text, style: theme.textTheme.bodySmall),
+        ],
+      ),
+    );
+
+    return MouseRegion(
+      cursor: hasImage ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: GestureDetector(
+        onTap: hasImage
+            ? () => Get.to(() => FullImageScreen(imageUrl: url))
+            : null,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (!hasImage)
+                empty(PhosphorIconsRegular.imageSquare, 'No photo uploaded')
+              else
+                Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    final total = progress.expectedTotalBytes;
+                    return Container(
+                      color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                      alignment: Alignment.center,
+                      child: SizedBox(
+                        width: 26,
+                        height: 26,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          value: total == null
+                              ? null
+                              : progress.cumulativeBytesLoaded / total,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (_, __, ___) => empty(
+                    PhosphorIconsRegular.imageBroken,
+                    'Could not load photo',
+                  ),
+                ),
+              if (hasImage)
+                Positioned(
+                  left: 16,
+                  bottom: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      caption,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Thumb extends StatelessWidget {
+  const _Thumb({
+    required this.url,
+    required this.selected,
+    required this.label,
+    required this.onTap,
+    required this.fallbackColor,
+  });
+
+  final String url;
+  final bool selected;
+  final String label;
+  final VoidCallback onTap;
+  final Color fallbackColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Tooltip(
+      message: label,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            width: 120,
+            height: 72,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected ? cs.primary : theme.dividerColor,
+                width: selected ? 2 : 1,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: url.isEmpty
+                ? Container(
+                    color: fallbackColor,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      PhosphorIconsRegular.imageSquare,
+                      size: 22,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  )
+                : Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: fallbackColor),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Delivery address (latest order)
+// ----------------------------------------------------------------------------
+
+class _AddressCard extends StatelessWidget {
+  const _AddressCard({required this.c});
+
+  final UserDetailController c;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Obx(() {
+      final latest = c.lastOrder;
+      final address = latest?.deliveryAddress.trim() ?? '';
+      final loading = c.ordersLoading.value;
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: _panel(context),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              padding: EdgeInsets.all(12.w),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withAlpha(50),
-                borderRadius: BorderRadius.circular(12.r),
+                color: cs.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 24.sp),
+              child: Icon(
+                PhosphorIconsRegular.mapPin,
+                size: 20,
+                color: cs.primary,
+              ),
             ),
-            SizedBox(width: 16.w),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
-                    style: GoogleFonts.inter(
-                      fontSize: 15.sp,
-                      fontWeight: FontWeight.w600,
-                      color: kblack,
+                    'Delivery address on the latest order',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(height: 4.h),
+                  const SizedBox(height: 4),
                   Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 12.sp,
-                      color: Colors.grey.shade600,
+                    loading
+                        ? 'Loading...'
+                        : address.isEmpty
+                        ? 'No orders with an address yet.'
+                        : address,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: address.isEmpty ? cs.onSurfaceVariant : null,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Compare this with the location photo before approving.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Checklist
+// ----------------------------------------------------------------------------
+
+class _ChecklistCard extends StatelessWidget {
+  const _ChecklistCard({required this.data});
+
+  final Map<String, dynamic> data;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final checks = <(String, bool)>[
+      ('Profile photo', _text(data['image']).isNotEmpty),
+      ('Location photo', _text(data['locationImage']).isNotEmpty),
+      ('Phone number', _text(data['phoneNumber']).isNotEmpty),
+      ('Email address', _text(data['email']).isNotEmpty),
+    ];
+    final done = checks.where((e) => e.$2).length;
+    final missing = checks.where((e) => !e.$2).map((e) => e.$1).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: _panel(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'REVIEW CHECKLIST',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$done of ${checks.length}',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: done / checks.length,
+              minHeight: 6,
+              backgroundColor: theme.dividerColor,
+            ),
+          ),
+          const SizedBox(height: 14),
+          for (final check in checks)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(
+                children: [
+                  Icon(
+                    check.$2
+                        ? PhosphorIconsFill.checkCircle
+                        : PhosphorIconsRegular.circle,
+                    size: 22,
+                    color: check.$2
+                        ? cs.primary
+                        : cs.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    check.$1,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: check.$2 ? cs.onSurface : cs.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isSelected) Icon(Icons.check_circle, color: color, size: 24.sp),
+          if (missing.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: cs.secondary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: cs.secondary.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                'Still missing: ${missing.join(', ').toLowerCase()}. You can still make a decision.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurface,
+                  height: 1.4,
+                ),
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
+}
+
+// ----------------------------------------------------------------------------
+// Stats
+// ----------------------------------------------------------------------------
+
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({required this.c});
+
+  final UserDetailController c;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        elevation: 0,
-        leading: const BackNavigatingButton(color: kblack),
-        title: Text(
-          'User Verification',
-          style: GoogleFonts.inter(
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w700,
-            color: kblack,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        actions: [
-          if (!isLoading && userData != null)
-            IconButton(
-              icon: Icon(Icons.refresh_rounded, color: kPrimaryColor),
-              onPressed: () {
-                setState(() {
-                  isLoading = true;
-                });
-                _fetchUserData();
-              },
-            ),
-        ],
-      ),
-      body: isLoading
-          ? UserDetailLoading()
-          : userData == null
-          ? _buildErrorState()
-          : _buildContent(),
-    );
-  }
+    return Obx(() {
+      final loading = c.ordersLoading.value;
+      final last = c.lastOrder;
 
-  Widget _buildErrorState() {
-    return Center(
+      final tiles = <(String, String)>[
+        ('Orders', loading ? '...' : '${c.orders.length}'),
+        ('Total spent', loading ? '...' : Money.rs(c.totalSpent)),
+        ('Average order', loading ? '...' : Money.rs(c.averageOrder)),
+        (
+          'Last order',
+          loading
+              ? '...'
+              : last == null
+              ? 'None yet'
+              : DateFormat('d MMM yyyy').format(last.orderDate),
+        ),
+      ];
+
+      return LayoutBuilder(
+        builder: (context, box) {
+          const gap = 12.0;
+          final width = (box.maxWidth - gap) / 2;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final tile in tiles)
+                SizedBox(
+                  width: width,
+                  child: _MiniKpi(label: tile.$1, value: tile.$2),
+                ),
+            ],
+          );
+        },
+      );
+    });
+  }
+}
+
+class _MiniKpi extends StatelessWidget {
+  const _MiniKpi({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor),
+      ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.error_outline_rounded,
-            size: 64.sp,
-            color: Colors.red.shade300,
-          ),
-          SizedBox(height: 16.h),
           Text(
-            'User not found',
-            style: GoogleFonts.inter(
-              fontSize: 18.sp,
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontSize: 19,
+            ),
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildContent() {
-    final fullName = userData!['fullName'] ?? 'N/A';
-    final email = userData!['email'] ?? 'N/A';
-    final phoneNumber = userData!['phoneNumber'] ?? 'N/A';
-    final uniqueId = userData!['uniqueId'] ?? 'N/A';
-    final profileStatus = userData!['profileStatus'] ?? 'notVerified';
-    final isVerified = userData!['isVerified'] ?? false;
-    final userImage = userData!['image'] ?? '';
-    final locationImage = userData!['locationImage'] ?? '';
-    final createdAt = userData!['createdAt'] as Timestamp?;
+// ----------------------------------------------------------------------------
+// Order history table
+// ----------------------------------------------------------------------------
 
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(16.w),
+class _OrdersTable extends StatelessWidget {
+  const _OrdersTable({required this.c});
+
+  final UserDetailController c;
+
+  static const _shown = 8;
+  static const _flex = [12, 16, 8, 12, 10, 10];
+  static const _headers = [
+    'ORDER',
+    'DATE',
+    'ITEMS',
+    'PAYMENT',
+    'TOTAL',
+    'STATUS',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Obx(() {
+      final loading = c.ordersLoading.value;
+      final orders = c.orders;
+      final recent = orders.take(_shown).toList();
+
+      return Container(
+        width: double.infinity,
+        decoration: _panel(context),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Header Card
-            _buildProfileHeader(fullName, userImage, profileStatus, isVerified),
-            SizedBox(height: 16.h),
-
-            // Location Image Card (Most Important for Verification)
-            if (locationImage.isNotEmpty) ...[
-              _buildSectionTitle(
-                'Location Verification',
-                Icons.location_on_rounded,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 18, 22, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Order history',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    loading
+                        ? 'Loading orders...'
+                        : orders.length > _shown
+                        ? 'Latest $_shown of ${orders.length} orders'
+                        : '${orders.length} ${orders.length == 1 ? 'order' : 'orders'}',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
               ),
-              SizedBox(height: 12.h),
-              _buildLocationImageCard(locationImage),
-              SizedBox(height: 16.h),
-            ],
-
-            // User Information Card
-            _buildSectionTitle('User Information', Icons.person_rounded),
-            SizedBox(height: 12.h),
-            _buildUserInfoCard(
-              fullName,
-              email,
-              phoneNumber,
-              uniqueId,
-              createdAt,
             ),
-            SizedBox(height: 16.h),
-
-            InkWell(
-              onTap: _showStatusDialog,
-              borderRadius: BorderRadius.circular(16.r),
-              child: Container(
-                padding: EdgeInsets.all(18.w),
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: kPrimaryColor,
-                  borderRadius: BorderRadius.circular(11.r),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.edit_rounded, color: Colors.white, size: 20.sp),
-                    SizedBox(width: 8.w),
-                    Text(
-                      'Update Status',
-                      style: GoogleFonts.inter(
-                        fontSize: 15.sp,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+            Divider(height: 1, color: theme.dividerColor),
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 28),
+                child: AppLoader(label: 'Loading orders...'),
+              )
+            else if (recent.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 30),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        PhosphorIconsRegular.package,
+                        size: 34,
+                        color: cs.onSurfaceVariant,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 24.h),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileHeader(
-    String fullName,
-    String userImage,
-    String profileStatus,
-    bool isVerified,
-  ) {
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-
-    switch (profileStatus) {
-      case 'verified':
-        statusColor = Colors.green;
-        statusText = 'Verified';
-        statusIcon = Icons.verified_user_rounded;
-        break;
-      case 'rejected':
-        statusColor = Colors.red;
-        statusText = 'Rejected';
-        statusIcon = Icons.cancel_rounded;
-        break;
-      default:
-        statusColor = Colors.orange;
-        statusText = 'Not Verified';
-        statusIcon = Icons.pending_rounded;
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.white, Colors.grey.shade50],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20.r),
-        boxShadow: [
-          BoxShadow(
-            color: kPrimaryColor.withAlpha(25),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(13.w),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () {
-              Get.to(() => FullImageScreen(imageUrl: userImage));
-            },
-
-            child: Stack(
-              children: [
-                Container(
-                  width: 122.w,
-                  height: 122.h,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        kPrimaryColor.withAlpha(178),
-                        kPrimaryColor.withAlpha(76),
-                      ],
-                    ),
-
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kPrimaryColor.withAlpha(76),
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
+                      const SizedBox(height: 10),
+                      Text(
+                        'No orders yet',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Orders this customer places will show up here.',
+                        style: theme.textTheme.bodySmall,
                       ),
                     ],
-                    image: userImage.isNotEmpty
-                        ? DecorationImage(
-                            image: NetworkImage(userImage),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: userImage.isEmpty
-                      ? Icon(
-                          Icons.person_rounded,
-                          size: 50.sp,
-                          color: Colors.white,
-                        )
-                      : null,
-                ),
-                Positioned(
-                  bottom: 3,
-                  right: 4,
-                  child: Container(
-                    padding: EdgeInsets.all(4.w),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: statusColor.withAlpha(127),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Icon(statusIcon, color: Colors.white, size: 20.sp),
                   ),
                 ),
-              ],
-            ),
-          ),
-          SizedBox(width: 9.h),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fullName,
-                  style: GoogleFonts.inter(
-                    fontSize: 17.sp,
-                    fontWeight: FontWeight.w600,
-                    color: kblack,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 6.h),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 14.w,
-                    vertical: 8.h,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withAlpha(25),
-                    borderRadius: BorderRadius.circular(20.r),
-                    border: Border.all(color: statusColor.withAlpha(76)),
-                  ),
-                  child: Text(
-                    statusText.toUpperCase(),
-                    style: GoogleFonts.inter(
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationImageCard(String locationImage) {
-    return InkWell(
-      onTap: () => Get.to(() => FullImageScreen(imageUrl: locationImage)),
-      borderRadius: BorderRadius.circular(20.r),
-      child: Container(
-        height: 250.h,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20.r),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(20),
-              blurRadius: 16,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(20.r),
-              child: Image.network(
-                locationImage,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return LoadingPlaceholder.fromColors(
-                    baseColor: Colors.grey.shade300,
-                    highlightColor: Colors.grey.shade100,
-                    child: Container(color: Colors.white),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey.shade200,
-                    child: Center(
-                      child: Icon(
-                        Icons.broken_image,
-                        size: 64.sp,
-                        color: Colors.grey,
+              )
+            else
+              LayoutBuilder(
+                builder: (context, box) {
+                  final width = math.max(box.maxWidth, 760.0);
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: width,
+                      child: Column(
+                        children: [
+                          Container(
+                            color: cs.surfaceContainerHighest.withValues(
+                              alpha: 0.45,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 12,
+                            ),
+                            child: _row([
+                              for (final h in _headers)
+                                Text(
+                                  h,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                            ]),
+                          ),
+                          for (final order in recent)
+                            _OrderRow(order: order, row: _row),
+                        ],
                       ),
                     ),
                   );
                 },
               ),
-            ),
-            Positioned(
-              top: 12.h,
-              right: 12.w,
-              child: Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(127),
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Icon(
-                  Icons.zoom_in_rounded,
-                  color: Colors.white,
-                  size: 24.sp,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: EdgeInsets.all(16.w),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.black.withAlpha(178), Colors.transparent],
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                  ),
-                  borderRadius: BorderRadius.vertical(
-                    bottom: Radius.circular(20.r),
-                  ),
-                ),
-                child: Text(
-                  'Tap to view full image',
-                  style: GoogleFonts.inter(
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 
-  Widget _buildUserInfoCard(
-    String fullName,
-    String email,
-    String phoneNumber,
-    String uniqueId,
-    Timestamp? createdAt,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(15),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: EdgeInsets.all(20.w),
-      child: Column(
-        children: [
-          _buildInfoRow(Icons.badge_rounded, 'Full Name', fullName),
-          _buildDivider(),
-          _buildInfoRow(Icons.email_rounded, 'Email', email),
-          _buildDivider(),
-          _buildInfoRow(Icons.phone_rounded, 'Phone Number', phoneNumber),
-          _buildDivider(),
-          _buildInfoRow(Icons.fingerprint_rounded, 'Unique ID', uniqueId),
-          if (createdAt != null) ...[
-            _buildDivider(),
-            _buildInfoRow(
-              Icons.calendar_today_rounded,
-              'Joined',
-              DateFormat('MMM dd, yyyy • hh:mm a').format(createdAt.toDate()),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 12.h),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(10.w),
-            decoration: BoxDecoration(
-              color: kPrimaryColor.withAlpha(25),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Icon(icon, color: kPrimaryColor, size: 20.sp),
-          ),
-          SizedBox(width: 16.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 12.sp,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
-                    color: kblack,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Divider(color: Colors.grey.shade200, height: 1, thickness: 1);
-  }
-
-  Widget _buildSectionTitle(String title, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: EdgeInsets.all(8.w),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [kPrimaryColor, kPrimaryColor.withAlpha(178)],
-            ),
-            borderRadius: BorderRadius.circular(10.r),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20.sp),
-        ),
-        SizedBox(width: 12.w),
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 17.sp,
-            fontWeight: FontWeight.w700,
-            color: kblack,
-          ),
-        ),
+  static Widget _row(List<Widget> cells) => Row(
+    children: [
+      for (var i = 0; i < cells.length; i++) ...[
+        Expanded(flex: _flex[i], child: cells[i]),
+        if (i != cells.length - 1) const SizedBox(width: 12),
       ],
+    ],
+  );
+}
+
+class _OrderRow extends StatelessWidget {
+  const _OrderRow({required this.order, required this.row});
+
+  final OrderModel order;
+  final Widget Function(List<Widget> cells) row;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final payment = order.paymentMethod.trim();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 15),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: row([
+        Text(
+          '#${order.number}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          DateFormat('d MMM yyyy, h:mm a').format(order.orderDate),
+          style: theme.textTheme.bodyMedium,
+        ),
+        Text('${order.items.length}', style: theme.textTheme.bodyMedium),
+        Text(
+          _or(payment, '-'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium,
+        ),
+        Text(
+          Money.rs(order.total),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: _Pill(
+            label: order.status,
+            color: _orderColor(cs, order.status),
+          ),
+        ),
+      ]),
     );
   }
 }

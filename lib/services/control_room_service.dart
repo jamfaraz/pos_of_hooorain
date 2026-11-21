@@ -73,6 +73,25 @@ class ControlRoomService {
       .limit(limit)
       .snapshots();
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchAllProducts() =>
+      _firestore.collection('products').snapshots();
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchCollectionSince(
+    String collection,
+    String field,
+    DateTime start,
+  ) => _firestore
+      .collection(collection)
+      .where(field, isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+      .snapshots();
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchOrdersByStatus(
+    String status,
+  ) => _firestore
+      .collection('orders')
+      .where('status', isEqualTo: status)
+      .snapshots();
+
   Stream<QuerySnapshot<Map<String, dynamic>>> watchProductScreenPage({
     required String mode,
   }) => _productScreenQuery(mode).limit(productScreenPageSize).snapshots();

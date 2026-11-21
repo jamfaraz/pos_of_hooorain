@@ -5,6 +5,7 @@ import 'package:hoorain_pos/models/order_record.dart';
 import 'package:hoorain_pos/utils/pricing.dart';
 import 'package:hoorain_pos/utils/profit_analysis.dart';
 import 'package:hoorain_pos/utils/rider_pay.dart';
+import 'package:hoorain_pos/utils/dashboard_metrics.dart';
 
 void main() {
   group('product compatibility', () {
@@ -154,5 +155,91 @@ void main() {
     expect(totals.sales, 240);
     expect(totals.cost, 160);
     expect(totals.profit, 80);
+  });
+
+  test('dashboard profit excludes items without a recorded cost price', () {
+    final order = OrderRecord(
+      status: 'Delivered',
+      items: const [
+        OrderLineRecord(
+          productId: 'known',
+          qty: 2,
+          unitPrice: 10,
+          costAtSale: 4,
+        ),
+        OrderLineRecord(productId: 'unknown', qty: 3, unitPrice: 50),
+      ],
+    );
+
+    expect(knownCostSales(order), 20);
+    expect(knownCostProfit(order), 12);
+  });
+
+  test('dashboard top sellers rank units for the selected period', () {
+    final today = DateTime(2026, 11, 21, 12);
+    final sellers = topSellingItems(
+      [
+        OrderRecord(
+          createdAt: today,
+          status: 'Delivered',
+          items: const [
+            OrderLineRecord(
+              productId: 'rice',
+              name: 'Rice',
+              qty: 3,
+              unitPrice: 10,
+            ),
+          ],
+        ),
+        OrderRecord(
+          createdAt: today.subtract(const Duration(days: 3)),
+          status: 'Pending',
+          items: const [
+            OrderLineRecord(
+              productId: 'rice',
+              name: 'Rice',
+              qty: 2,
+              unitPrice: 10,
+            ),
+            OrderLineRecord(
+              productId: 'tea',
+              name: 'Tea',
+              qty: 4,
+              unitPrice: 5,
+            ),
+          ],
+        ),
+        OrderRecord(
+          createdAt: today,
+          status: 'Cancelled',
+          items: const [
+            OrderLineRecord(
+              productId: 'tea',
+              name: 'Tea',
+              qty: 20,
+              unitPrice: 5,
+            ),
+          ],
+        ),
+        OrderRecord(
+          createdAt: today.subtract(const Duration(days: 8)),
+          items: const [
+            OrderLineRecord(
+              productId: 'old',
+              name: 'Old item',
+              qty: 100,
+              unitPrice: 1,
+            ),
+          ],
+        ),
+      ],
+      now: today,
+      days: 7,
+    );
+
+    expect(sellers.map((item) => item.productId), ['rice', 'tea']);
+    expect(sellers.first.quantity, 5);
+    expect(sellers.first.sales, 50);
+    expect(sellers.last.quantity, 4);
   });
 }
