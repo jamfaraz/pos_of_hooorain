@@ -72,13 +72,13 @@ class _Elite {
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: text,
-            style:  theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600
-                ),
-            
+            TextSpan(
+              text: text,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             if (optional)
               TextSpan(
@@ -86,7 +86,7 @@ class _Elite {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w400,
-                  fontSize: 13
+                  fontSize: 13,
                 ),
               ),
             if (required)

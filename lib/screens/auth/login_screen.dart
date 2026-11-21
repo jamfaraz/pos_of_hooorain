@@ -21,7 +21,6 @@ import '../../utils/toas_message.dart';
 
 class _C {
   static const bg = Color(0xFFF1F5F3);
-  static const surface = Colors.white;
   static const ink = Color(0xFF10231D);
   static const sub = Color(0xFF566B63);
   static const line = Color(0xFFE1E9E5);
@@ -39,15 +38,24 @@ Color _a(Color c, double o) => c.withAlpha((o * 255).clamp(0, 255).round());
 
 TextStyle _display(Color c, double size, {FontWeight w = FontWeight.w700}) =>
     GoogleFonts.fraunces(
-        color: c,
-        fontSize: size,
-        height: 1.06,
-        fontWeight: w,
-        letterSpacing: -size * .02);
+      color: c,
+      fontSize: size,
+      height: 1.06,
+      fontWeight: w,
+      letterSpacing: -size * .02,
+    );
 
-TextStyle _body(Color c, double size, {FontWeight w = FontWeight.w400, double? h}) =>
-    GoogleFonts.plusJakartaSans(
-        color: c, fontSize: size, fontWeight: w, height: h);
+TextStyle _body(
+  Color c,
+  double size, {
+  FontWeight w = FontWeight.w400,
+  double? h,
+}) => GoogleFonts.plusJakartaSans(
+  color: c,
+  fontSize: size,
+  fontWeight: w,
+  height: h,
+);
 
 // -----------------------------------------------------------------------------
 // Screen
@@ -75,12 +83,17 @@ class _LoginScreenState extends State<LoginScreen>
   final GlobalKey _howKey = GlobalKey();
 
   late final AnimationController _enter = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1400))
-    ..forward();
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..forward();
   late final AnimationController _panel = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 460));
+    vsync: this,
+    duration: const Duration(milliseconds: 460),
+  );
   late final AnimationController _shake = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 450));
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+  );
 
   bool _open = false;
 
@@ -143,16 +156,20 @@ class _LoginScreenState extends State<LoginScreen>
   void _to(GlobalKey key) {
     final ctx = key.currentContext;
     if (ctx != null) {
-      Scrollable.ensureVisible(ctx,
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOutCubic);
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeInOutCubic,
+      );
     }
   }
 
   void _toTopAndOpen() {
-    _scroll.animateTo(0,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeOutCubic);
+    _scroll.animateTo(
+      0,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeOutCubic,
+    );
     _openLogin();
   }
 
@@ -164,8 +181,11 @@ class _LoginScreenState extends State<LoginScreen>
       animation: _enter,
       child: child,
       builder: (_, c) {
-        final t = Interval(start, end, curve: Curves.easeOutCubic)
-            .transform(_enter.value);
+        final t = Interval(
+          start,
+          end,
+          curve: Curves.easeOutCubic,
+        ).transform(_enter.value);
         return Opacity(
           opacity: t,
           child: Transform.translate(offset: Offset(0, 24 * (1 - t)), child: c),
@@ -175,14 +195,14 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _wrap(bool wide, Widget child) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: wide ? 40 : 20),
-            child: child,
-          ),
-        ),
-      );
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 1200),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: wide ? 40 : 20),
+        child: child,
+      ),
+    ),
+  );
 
   // ---------------------------------------------------------------------------
   // Build
@@ -203,51 +223,64 @@ class _LoginScreenState extends State<LoginScreen>
           body: Stack(
             children: [
               Positioned.fill(
-                child: LayoutBuilder(builder: (context, box) {
-                  final wide = box.maxWidth >= 900;
-                  final cols = box.maxWidth >= 900 ? 3 : (box.maxWidth >= 620 ? 2 : 1);
-                  final inner = math.min<double>(box.maxWidth, 1200.0) -
-                      (wide ? 80.0 : 40.0);
-                  final topPad = MediaQuery.of(context).padding.top + 72;
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final wide = box.maxWidth >= 900;
+                    final cols = box.maxWidth >= 900
+                        ? 3
+                        : (box.maxWidth >= 620 ? 2 : 1);
+                    final inner =
+                        math.min<double>(box.maxWidth, 1200.0) -
+                        (wide ? 80.0 : 40.0);
+                    final topPad = MediaQuery.of(context).padding.top + 72;
 
-                  return SingleChildScrollView(
-                    controller: _scroll,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _wrap(
-                          wide,
-                          Padding(
-                            padding: EdgeInsets.only(
+                    return SingleChildScrollView(
+                      controller: _scroll,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _wrap(
+                            wide,
+                            Padding(
+                              padding: EdgeInsets.only(
                                 top: topPad + (wide ? 40 : 20),
-                                bottom: wide ? 96 : 60),
-                            child: wide ? _heroWide() : _heroNarrow(),
+                                bottom: wide ? 96 : 60,
+                              ),
+                              child: wide ? _heroWide() : _heroNarrow(),
+                            ),
                           ),
-                        ),
-                        _featuresBand(wide, cols, inner),
-                        _wrap(
-                          wide,
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                vertical: wide ? 96 : 60),
-                            child: _Reveal(
-                                scroll: _scroll, child: _pricing(wide)),
+                          _featuresBand(wide, cols, inner),
+                          _wrap(
+                            wide,
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                vertical: wide ? 96 : 60,
+                              ),
+                              child: _Reveal(
+                                scroll: _scroll,
+                                child: _pricing(wide),
+                              ),
+                            ),
                           ),
-                        ),
-                        _wrap(wide, _how(wide, cols, inner)),
-                        _wrap(
-                          wide,
-                          Padding(
-                            padding: EdgeInsets.symmetric(
-                                vertical: wide ? 96 : 60),
-                            child: _Reveal(scroll: _scroll, child: _cta(wide)),
+                          _wrap(wide, _how(wide, cols, inner)),
+                          _wrap(
+                            wide,
+                            Padding(
+                              padding: EdgeInsets.symmetric(
+                                vertical: wide ? 96 : 60,
+                              ),
+                              child: _Reveal(
+                                scroll: _scroll,
+                                child: _cta(wide),
+                              ),
+                            ),
                           ),
-                        ),
-                        _footer(wide),
-                      ],
-                    ),
-                  );
-                }),
+                          _footer(wide),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
               Positioned(top: 0, left: 0, right: 0, child: _navBar()),
               if (_open) _loginLayer(),
@@ -274,7 +307,10 @@ class _LoginScreenState extends State<LoginScreen>
         final t = (off / 90).clamp(0.0, 1.0);
         return ClipRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: .001 + 16 * t, sigmaY: .001 + 16 * t),
+            filter: ImageFilter.blur(
+              sigmaX: .001 + 16 * t,
+              sigmaY: .001 + 16 * t,
+            ),
             child: Container(
               padding: EdgeInsets.only(top: top),
               decoration: BoxDecoration(
@@ -296,29 +332,36 @@ class _LoginScreenState extends State<LoginScreen>
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Hoorain',
-                                  style: _display(_C.ink, 23)),
+                              Text('Hoorain', style: _display(_C.ink, 23)),
                               if (!tiny)
-                                Text('Control room',
-                                  style: _body(_C.sub, 11.5,
-                                      w: FontWeight.w600)),
+                                Text(
+                                  'Control room',
+                                  style: _body(
+                                    _C.sub,
+                                    11.5,
+                                    w: FontWeight.w600,
+                                  ),
+                                ),
                             ],
                           ),
                           const Spacer(),
                           if (wide) ...[
                             _NavLink('Features', () => _to(_featuresKey)),
                             const SizedBox(width: 28),
-                            _NavLink('Home and shop prices',
-                                () => _to(_pricesKey)),
+                            _NavLink(
+                              'Home and shop prices',
+                              () => _to(_pricesKey),
+                            ),
                             const SizedBox(width: 28),
                             _NavLink('How it works', () => _to(_howKey)),
                             const SizedBox(width: 28),
                           ],
                           _GreenButton(
-                              label: wide ? 'Admin login' : 'Login',
-                              height: 44,
-                              fontSize: 14.5,
-                              onPressed: _openLogin),
+                            label: wide ? 'Admin login' : 'Login',
+                            height: 44,
+                            fontSize: 14.5,
+                            onPressed: _openLogin,
+                          ),
                         ],
                       ),
                     ),
@@ -372,22 +415,31 @@ class _LoginScreenState extends State<LoginScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30), color: _C.priSoft),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.home_rounded, size: 16, color: _C.priInk),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text('For grocery suppliers selling to shops and homes',
-                    style: _body(_C.priInk, 12.5, w: FontWeight.w700)),
-              ),
-            ]),
+              borderRadius: BorderRadius.circular(30),
+              color: _C.priSoft,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.home_rounded, size: 16, color: _C.priInk),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'For grocery suppliers selling to shops and homes',
+                    style: _body(_C.priInk, 12.5, w: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 22),
         _seq(
           1,
-          Text('Supply every shop and every home from one control room.',
-              style: _display(_C.ink, size)),
+          Text(
+            'Supply every shop and every home from one control room.',
+            style: _display(_C.ink, size),
+          ),
         ),
         const SizedBox(height: 20),
         _seq(
@@ -408,59 +460,84 @@ class _LoginScreenState extends State<LoginScreen>
             runSpacing: 14,
             children: [
               _GreenButton(
-                  label: 'Admin login',
-                  icon: Icons.arrow_forward_rounded,
-                  height: 56,
-                  fontSize: 16,
-                  onPressed: _openLogin),
+                label: 'Admin login',
+                icon: Icons.arrow_forward_rounded,
+                height: 56,
+                fontSize: 16,
+                onPressed: _openLogin,
+              ),
               _GhostButton(
-                  label: 'See what it does',
-                  onPressed: () => _to(_featuresKey)),
+                label: 'See what it does',
+                onPressed: () => _to(_featuresKey),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 32),
         _seq(
           4,
-          Wrap(spacing: 22, runSpacing: 10, children: [
-            _trust('Home and shop pricing'),
-            _trust('Optional bulk tiers'),
-            _trust('Offers on any product'),
-          ]),
+          Wrap(
+            spacing: 22,
+            runSpacing: 10,
+            children: [
+              _trust('Home and shop pricing'),
+              _trust('Optional bulk tiers'),
+              _trust('Offers on any product'),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _trust(String t) => Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.check_rounded, size: 18, color: _C.pri),
-        const SizedBox(width: 8),
-        Text(t, style: _body(_C.sub, 13.5, w: FontWeight.w600)),
-      ]);
+  Widget _trust(String t) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const Icon(Icons.check_rounded, size: 18, color: _C.pri),
+      const SizedBox(width: 8),
+      Text(t, style: _body(_C.sub, 13.5, w: FontWeight.w600)),
+    ],
+  );
 
   // ---------------------------------------------------------------------------
   // Features
   // ---------------------------------------------------------------------------
 
-  Widget _heading(String eyebrow, String title, String? sub, bool wide,
-      {bool light = false}) {
+  Widget _heading(
+    String eyebrow,
+    String title,
+    String? sub,
+    bool wide, {
+    bool light = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(eyebrow.toUpperCase(),
-            style: _body(light ? _C.mint : _C.priInk, 12.5,
-                    w: FontWeight.w800)
-                .copyWith(letterSpacing: 1.1)),
+        Text(
+          eyebrow.toUpperCase(),
+          style: _body(
+            light ? _C.mint : _C.priInk,
+            12.5,
+            w: FontWeight.w800,
+          ).copyWith(letterSpacing: 1.1),
+        ),
         const SizedBox(height: 10),
-        Text(title,
-            style: _display(light ? Colors.white : _C.ink, wide ? 44 : 27)),
+        Text(
+          title,
+          style: _display(light ? Colors.white : _C.ink, wide ? 44 : 27),
+        ),
         if (sub != null) ...[
           const SizedBox(height: 14),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 580),
-            child: Text(sub,
-                style: _body(light ? _a(Colors.white, .82) : _C.sub, 16.5,
-                    h: 1.55)),
+            child: Text(
+              sub,
+              style: _body(
+                light ? _a(Colors.white, .82) : _C.sub,
+                16.5,
+                h: 1.55,
+              ),
+            ),
           ),
         ],
       ],
@@ -469,18 +546,36 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _featuresBand(bool wide, int cols, double inner) {
     const items = [
-      (Icons.receipt_long_rounded, 'Counter billing',
-          'Bill walk-in customers fast. The right price list applies by customer type, bulk prices apply on their own, and stock drops when you print.'),
-      (Icons.home_rounded, 'Separate home and shop prices',
-          'Every product carries MRP, a home price and a shop price, with your margin shown for each so you never sell below cost by mistake.'),
-      (Icons.folder_outlined, 'Categories and subcategories',
-          'Group products the way customers shop. Tap a category to see its products, and hide a whole category from the app in one switch.'),
-      (Icons.inventory_2_outlined, 'Stock and reorder alerts',
-          'Track quantity per product, set a reorder level, and see low and out-of-stock items before customers do.'),
-      (Icons.local_offer_outlined, 'Offers on any product',
-          'Run a percent or rupee discount for everyone, home users or shops only. Top offers lead the app home screen.'),
-      (Icons.local_shipping_outlined, 'Online orders',
-          'Orders from the Home and Shop apps land in one queue, so you can confirm, pack and deliver without switching screens.'),
+      (
+        Icons.receipt_long_rounded,
+        'Counter billing',
+        'Bill walk-in customers fast. The right price list applies by customer type, bulk prices apply on their own, and stock drops when you print.',
+      ),
+      (
+        Icons.home_rounded,
+        'Separate home and shop prices',
+        'Every product carries MRP, a home price and a shop price, with your margin shown for each so you never sell below cost by mistake.',
+      ),
+      (
+        Icons.folder_outlined,
+        'Categories and subcategories',
+        'Group products the way customers shop. Tap a category to see its products, and hide a whole category from the app in one switch.',
+      ),
+      (
+        Icons.inventory_2_outlined,
+        'Stock and reorder alerts',
+        'Track quantity per product, set a reorder level, and see low and out-of-stock items before customers do.',
+      ),
+      (
+        Icons.local_offer_outlined,
+        'Offers on any product',
+        'Run a percent or rupee discount for everyone, home users or shops only. Top offers lead the app home screen.',
+      ),
+      (
+        Icons.local_shipping_outlined,
+        'Online orders',
+        'Orders from the Home and Shop apps land in one queue, so you can confirm, pack and deliver without switching screens.',
+      ),
     ];
     final w = (inner - (cols - 1) * 20) / cols;
 
@@ -500,51 +595,61 @@ class _LoginScreenState extends State<LoginScreen>
               _Reveal(
                 scroll: _scroll,
                 child: _heading(
-                    'Features',
-                    'Everything the supplier side needs',
-                    'One place to sell at the counter, manage the catalogue and decide what customers see in the app.',
-                    wide),
+                  'Features',
+                  'Everything the supplier side needs',
+                  'One place to sell at the counter, manage the catalogue and decide what customers see in the app.',
+                  wide,
+                ),
               ),
               const SizedBox(height: 44),
-              Wrap(spacing: 20, runSpacing: 20, children: [
-                for (var i = 0; i < items.length; i++)
-                  SizedBox(
-                    width: w,
-                    child: _Reveal(
-                      scroll: _scroll,
-                      delay: Duration(milliseconds: (i % cols) * 110),
-                      child: _HoverCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(14),
-                                color: i == 4
-                                    ? const Color(0xFFFDEBDD)
-                                    : _C.priSoft,
-                              ),
-                              child: Icon(items[i].$1,
+              Wrap(
+                spacing: 20,
+                runSpacing: 20,
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    SizedBox(
+                      width: w,
+                      child: _Reveal(
+                        scroll: _scroll,
+                        delay: Duration(milliseconds: (i % cols) * 110),
+                        child: _HoverCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  color: i == 4
+                                      ? const Color(0xFFFDEBDD)
+                                      : _C.priSoft,
+                                ),
+                                child: Icon(
+                                  items[i].$1,
                                   size: 24,
                                   color: i == 4
                                       ? const Color(0xFFB53F00)
-                                      : _C.priInk),
-                            ),
-                            const SizedBox(height: 18),
-                            Text(items[i].$2,
-                                style: _body(_C.ink, 18,
-                                    w: FontWeight.w700)),
-                            const SizedBox(height: 8),
-                            Text(items[i].$3,
-                                style: _body(_C.sub, 14.5, h: 1.55)),
-                          ],
+                                      : _C.priInk,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Text(
+                                items[i].$2,
+                                style: _body(_C.ink, 18, w: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                items[i].$3,
+                                style: _body(_C.sub, 14.5, h: 1.55),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ]),
+                ],
+              ),
             ],
           ),
         ),
@@ -566,73 +671,91 @@ class _LoginScreenState extends State<LoginScreen>
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading('Two price lists', 'One product, one stock count, two prices.',
-            'You supply to shops and to households, so each customer type should see the price that fits. Set both once and Hoorain does the rest.',
-            wide,
-            light: true),
+        _heading(
+          'Two price lists',
+          'One product, one stock count, two prices.',
+          'You supply to shops and to households, so each customer type should see the price that fits. Set both once and Hoorain does the rest.',
+          wide,
+          light: true,
+        ),
         const SizedBox(height: 26),
         for (final p in points)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 2),
-                child: Icon(Icons.check_rounded, size: 22, color: _C.mint),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Text(p,
-                      style: _body(Colors.white, 15.5, h: 1.45))),
-            ]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.check_rounded, size: 22, color: _C.mint),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(p, style: _body(Colors.white, 15.5, h: 1.45)),
+                ),
+              ],
+            ),
           ),
       ],
     );
 
     final cards = wide
-        ? const Row(children: [
-            Expanded(
+        ? const Row(
+            children: [
+              Expanded(
                 child: _AppPriceCard(
-                    label: 'Home app',
-                    icon: Icons.home_rounded,
-                    chipBg: _C.infoSoft,
-                    chipFg: _C.info,
-                    price: 'Rs 115',
-                    caption: 'Home price')),
-            SizedBox(width: 18),
-            Expanded(
+                  label: 'Home app',
+                  icon: Icons.home_rounded,
+                  chipBg: _C.infoSoft,
+                  chipFg: _C.info,
+                  price: 'Rs 115',
+                  caption: 'Home price',
+                ),
+              ),
+              SizedBox(width: 18),
+              Expanded(
                 child: _AppPriceCard(
-                    label: 'Shop app',
-                    icon: Icons.storefront_rounded,
-                    chipBg: _C.priSoft,
-                    chipFg: _C.priInk,
-                    price: 'Rs 104',
-                    caption: 'Shop price',
-                    bulk: true)),
-          ])
-        : const Column(children: [
-            _AppPriceCard(
+                  label: 'Shop app',
+                  icon: Icons.storefront_rounded,
+                  chipBg: _C.priSoft,
+                  chipFg: _C.priInk,
+                  price: 'Rs 104',
+                  caption: 'Shop price',
+                  bulk: true,
+                ),
+              ),
+            ],
+          )
+        : const Column(
+            children: [
+              _AppPriceCard(
                 label: 'Home app',
                 icon: Icons.home_rounded,
                 chipBg: _C.infoSoft,
                 chipFg: _C.info,
                 price: 'Rs 115',
-                caption: 'Home price'),
-            SizedBox(height: 16),
-            _AppPriceCard(
+                caption: 'Home price',
+              ),
+              SizedBox(height: 16),
+              _AppPriceCard(
                 label: 'Shop app',
                 icon: Icons.storefront_rounded,
                 chipBg: _C.priSoft,
                 chipFg: _C.priInk,
                 price: 'Rs 104',
                 caption: 'Shop price',
-                bulk: true),
-          ]);
+                bulk: true,
+              ),
+            ],
+          );
 
     return Container(
       key: _pricesKey,
       padding: EdgeInsets.all(wide ? 56 : 20),
       decoration: BoxDecoration(
-          color: _C.deep, borderRadius: BorderRadius.circular(32)),
+        color: _C.deep,
+        borderRadius: BorderRadius.circular(32),
+      ),
       child: wide
           ? Row(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -642,15 +765,18 @@ class _LoginScreenState extends State<LoginScreen>
                 Expanded(flex: 10, child: cards),
               ],
             )
-          : Column(children: [
-              text,
-              const SizedBox(height: 32),
-              Center(
-                child: ConstrainedBox(
+          : Column(
+              children: [
+                text,
+                const SizedBox(height: 32),
+                Center(
+                  child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 440),
-                    child: cards),
-              ),
-            ]),
+                    child: cards,
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -660,12 +786,21 @@ class _LoginScreenState extends State<LoginScreen>
 
   Widget _how(bool wide, int cols, double inner) {
     const steps = [
-      ('1', 'Build your catalogue',
-          'Add categories and subcategories, then products with description, MRP, quantity, photos and an optional video.'),
-      ('2', 'Set your prices',
-          'Give each product a home price and a shop price. Turn on bulk tiers only where buying more should cost less.'),
-      ('3', 'Sell and promote',
-          'Bill at the counter, receive online orders and push top offers to the app home screen whenever you need a boost.'),
+      (
+        '1',
+        'Build your catalogue',
+        'Add categories and subcategories, then products with description, MRP, quantity, photos and an optional video.',
+      ),
+      (
+        '2',
+        'Set your prices',
+        'Give each product a home price and a shop price. Turn on bulk tiers only where buying more should cost less.',
+      ),
+      (
+        '3',
+        'Sell and promote',
+        'Bill at the counter, receive online orders and push top offers to the app home screen whenever you need a boost.',
+      ),
     ];
     final c = wide ? 3 : 1;
     final w = (inner - (c - 1) * 20) / c;
@@ -678,40 +813,52 @@ class _LoginScreenState extends State<LoginScreen>
         children: [
           _Reveal(
             scroll: _scroll,
-            child: _heading('How it works',
-                'From catalogue to first order in three steps', null, wide),
+            child: _heading(
+              'How it works',
+              'From catalogue to first order in three steps',
+              null,
+              wide,
+            ),
           ),
           const SizedBox(height: 36),
-          Wrap(spacing: 20, runSpacing: 20, children: [
-            for (var i = 0; i < steps.length; i++)
-              SizedBox(
-                width: w,
-                child: _Reveal(
-                  scroll: _scroll,
-                  delay: Duration(milliseconds: i * 110),
-                  child: Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: _C.line, width: 1.5),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(steps[i].$1, style: _display(_C.pri, 48)),
-                        const SizedBox(height: 14),
-                        Text(steps[i].$2,
-                            style: _body(_C.ink, 19, w: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        Text(steps[i].$3,
-                            style: _body(_C.sub, 14.5, h: 1.55)),
-                      ],
+          Wrap(
+            spacing: 20,
+            runSpacing: 20,
+            children: [
+              for (var i = 0; i < steps.length; i++)
+                SizedBox(
+                  width: w,
+                  child: _Reveal(
+                    scroll: _scroll,
+                    delay: Duration(milliseconds: i * 110),
+                    child: Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: _C.line, width: 1.5),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(steps[i].$1, style: _display(_C.pri, 48)),
+                          const SizedBox(height: 14),
+                          Text(
+                            steps[i].$2,
+                            style: _body(_C.ink, 19, w: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            steps[i].$3,
+                            style: _body(_C.sub, 14.5, h: 1.55),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ]),
+            ],
+          ),
         ],
       ),
     );
@@ -725,29 +872,40 @@ class _LoginScreenState extends State<LoginScreen>
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Ready to open the control room?',
-            style: _display(Colors.white, wide ? 38 : 25)),
+        Text(
+          'Ready to open the control room?',
+          style: _display(Colors.white, wide ? 38 : 25),
+        ),
         const SizedBox(height: 10),
-        Text('Sign in with your admin account to manage products, prices, offers and orders.',
-            style: _body(_a(Colors.white, .9), 16.5, h: 1.5)),
+        Text(
+          'Sign in with your admin account to manage products, prices, offers and orders.',
+          style: _body(_a(Colors.white, .9), 16.5, h: 1.5),
+        ),
       ],
     );
     final button = _WhiteButton(label: 'Admin login', onPressed: _toTopAndOpen);
 
     return Container(
       padding: EdgeInsets.symmetric(
-          horizontal: wide ? 56 : 24, vertical: wide ? 56 : 32),
+        horizontal: wide ? 56 : 24,
+        vertical: wide ? 56 : 32,
+      ),
       decoration: BoxDecoration(
-          color: _C.pri, borderRadius: BorderRadius.circular(32)),
+        color: _C.pri,
+        borderRadius: BorderRadius.circular(32),
+      ),
       child: wide
-          ? Row(children: [
-              Expanded(child: text),
-              const SizedBox(width: 32),
-              button,
-            ])
+          ? Row(
+              children: [
+                Expanded(child: text),
+                const SizedBox(width: 32),
+                button,
+              ],
+            )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [text, const SizedBox(height: 24), button]),
+              children: [text, const SizedBox(height: 24), button],
+            ),
     );
   }
 
@@ -767,13 +925,18 @@ class _LoginScreenState extends State<LoginScreen>
             runSpacing: 16,
             spacing: 24,
             children: [
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                const _Logo(size: 34),
-                const SizedBox(width: 10),
-                Text('Hoorain', style: _display(_C.ink, 20)),
-              ]),
-              Text('© 2026 Hoorain. For authorised staff only.',
-                  style: _body(_C.sub, 13)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _Logo(size: 34),
+                  const SizedBox(width: 10),
+                  Text('Hoorain', style: _display(_C.ink, 20)),
+                ],
+              ),
+              Text(
+                '© 2026 Hoorain. For authorised staff only.',
+                style: _body(_C.sub, 13),
+              ),
             ],
           ),
         ),
@@ -799,7 +962,9 @@ class _LoginScreenState extends State<LoginScreen>
                   onTap: _closeLogin,
                   child: BackdropFilter(
                     filter: ImageFilter.blur(
-                        sigmaX: .001 + 12 * t, sigmaY: .001 + 12 * t),
+                      sigmaX: .001 + 12 * t,
+                      sigmaY: .001 + 12 * t,
+                    ),
                     child: Container(color: _a(_C.deep, .55 * t)),
                   ),
                 ),
@@ -807,8 +972,12 @@ class _LoginScreenState extends State<LoginScreen>
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.fromLTRB(20, 24, 20,
-                        24 + MediaQuery.of(context).viewInsets.bottom),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      24,
+                      20,
+                      24 + MediaQuery.of(context).viewInsets.bottom,
+                    ),
                     child: Opacity(
                       opacity: t,
                       child: Transform.translate(
@@ -825,7 +994,9 @@ class _LoginScreenState extends State<LoginScreen>
                                 final dx =
                                     math.sin(s * math.pi * 5) * 10 * (1 - s);
                                 return Transform.translate(
-                                    offset: Offset(dx, 0), child: c);
+                                  offset: Offset(dx, 0),
+                                  child: c,
+                                );
                               },
                             ),
                           ),
@@ -851,9 +1022,10 @@ class _LoginScreenState extends State<LoginScreen>
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-              color: _a(Colors.black, .25),
-              blurRadius: 60,
-              offset: const Offset(0, 28)),
+            color: _a(Colors.black, .25),
+            blurRadius: 60,
+            offset: const Offset(0, 28),
+          ),
         ],
       ),
       child: AutofillGroup(
@@ -861,24 +1033,33 @@ class _LoginScreenState extends State<LoginScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              const _Logo(size: 46),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Close',
-                onPressed: _closeLogin,
-                icon: const Icon(Icons.close_rounded, color: _C.sub),
-              ),
-            ]),
+            Row(
+              children: [
+                const _Logo(size: 46),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Close',
+                  onPressed: _closeLogin,
+                  icon: const Icon(Icons.close_rounded, color: _C.sub),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
-            Text('Sign in to your account',
-                textAlign: TextAlign.center,
-                style: _display(const Color(0xFF1B1A1F), narrow ? 25 : 29,
-                    w: FontWeight.w600)),
+            Text(
+              'Sign in to your account',
+              textAlign: TextAlign.center,
+              style: _display(
+                const Color(0xFF1B1A1F),
+                narrow ? 25 : 29,
+                w: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 10),
-            Text('Please enter your details to continue.',
-                textAlign: TextAlign.center,
-                style: _body(_C.sub, 14.5, h: 1.5)),
+            Text(
+              'Please enter your details to continue.',
+              textAlign: TextAlign.center,
+              style: _body(_C.sub, 14.5, h: 1.5),
+            ),
             const SizedBox(height: 28),
             _AuthField(
               controller: _email,
@@ -888,7 +1069,10 @@ class _LoginScreenState extends State<LoginScreen>
               icon: Icons.alternate_email_rounded,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.username, AutofillHints.email],
+              autofillHints: const [
+                AutofillHints.username,
+                AutofillHints.email,
+              ],
               // Enter on the email field: go to the password, or log in if
               // the password is already filled.
               onSubmitted: (_) {
@@ -915,33 +1099,41 @@ class _LoginScreenState extends State<LoginScreen>
                 tooltip: _hide ? 'Show password' : 'Hide password',
                 splashRadius: 20,
                 icon: Icon(
-                    _hide
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    size: 20,
-                    color: _C.sub),
+                  _hide
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  size: 20,
+                  color: _C.sub,
+                ),
                 onPressed: () => setState(() => _hide = !_hide),
               ),
             ),
             const SizedBox(height: 28),
-            Obx(() => _GreenButton(
-                  label: 'Login',
-                  icon: Icons.arrow_forward_rounded,
-                  height: 54,
-                  expand: true,
-                  loading: _controller.isLoading.value,
-                  onPressed: _submit,
-                )),
-            const SizedBox(height: 22),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.shield_outlined, size: 15, color: _C.sub),
-              const SizedBox(width: 7),
-              Flexible(
-                child: Text('Admin access only. Authorised staff only.',
-                    textAlign: TextAlign.center,
-                    style: _body(_C.sub, 12.5)),
+            Obx(
+              () => _GreenButton(
+                label: 'Login',
+                icon: Icons.arrow_forward_rounded,
+                height: 54,
+                expand: true,
+                loading: _controller.isLoading.value,
+                onPressed: _submit,
               ),
-            ]),
+            ),
+            const SizedBox(height: 22),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.shield_outlined, size: 15, color: _C.sub),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    'Admin access only. Authorised staff only.',
+                    textAlign: TextAlign.center,
+                    style: _body(_C.sub, 12.5),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -971,7 +1163,9 @@ class _Reveal extends StatefulWidget {
 
 class _RevealState extends State<_Reveal> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 750));
+    vsync: this,
+    duration: const Duration(milliseconds: 750),
+  );
   bool _shown = false;
 
   @override
@@ -1026,48 +1220,72 @@ class _ProductsMock extends StatelessWidget {
   const _ProductsMock();
 
   static const _rows = [
-    ('Cutter Mirch 200G', 'Milan Foods · Spices', '115', '104',
-        'assets/landing/cutter_mirch_200g.jpg'),
-    ('Cutter Mirch 500G', 'Milan Foods · Spices', '285', '260',
-        'assets/landing/cutter_mirch_500g.jpg'),
-    ('Dhaniya Powder 100G', 'Milan Foods · Spices', '60', '54',
-        'assets/landing/dhaniya_powder_100g.jpg'),
+    (
+      'Cutter Mirch 200G',
+      'Milan Foods · Spices',
+      '115',
+      '104',
+      'assets/landing/cutter_mirch_200g.jpg',
+    ),
+    (
+      'Cutter Mirch 500G',
+      'Milan Foods · Spices',
+      '285',
+      '260',
+      'assets/landing/cutter_mirch_500g.jpg',
+    ),
+    (
+      'Dhaniya Powder 100G',
+      'Milan Foods · Spices',
+      '60',
+      '54',
+      'assets/landing/dhaniya_powder_100g.jpg',
+    ),
   ];
 
   Widget _price(String v, {bool shop = false}) => SizedBox(
-        width: 54,
-        child: Text(v,
-            textAlign: TextAlign.right,
-            style: _body(shop ? _C.priInk : _C.ink, 14, w: FontWeight.w800)),
-      );
+    width: 54,
+    child: Text(
+      v,
+      textAlign: TextAlign.right,
+      style: _body(shop ? _C.priInk : _C.ink, 14, w: FontWeight.w800),
+    ),
+  );
 
   Widget _priceChip(String label, String v, bool shop) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        decoration: BoxDecoration(
-            color: shop ? _C.priSoft : _C.bg,
-            borderRadius: BorderRadius.circular(8)),
-        child: Text('$label Rs $v',
-            style: _body(shop ? _C.priInk : _C.ink, 12, w: FontWeight.w800)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+    decoration: BoxDecoration(
+      color: shop ? _C.priSoft : _C.bg,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Text(
+      '$label Rs $v',
+      style: _body(shop ? _C.priInk : _C.ink, 12, w: FontWeight.w800),
+    ),
+  );
 
   Widget _offerCard(IconData? icon, Widget lead, String t1, String t2) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(18)),
-      child: Row(children: [
-        lead,
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t1, style: _body(_C.ink, 13, w: FontWeight.w700, h: 1.25)),
-              Text(t2, style: _body(_C.sub, 12.5, h: 1.25)),
-            ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          lead,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(t1, style: _body(_C.ink, 13, w: FontWeight.w700, h: 1.25)),
+                Text(t2, style: _body(_C.sub, 12.5, h: 1.25)),
+              ],
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 
@@ -1079,9 +1297,13 @@ class _ProductsMock extends StatelessWidget {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-            color: _C.acc, borderRadius: BorderRadius.circular(10)),
-        child: Text('8% off',
-            style: _body(Colors.white, 13.5, w: FontWeight.w800)),
+          color: _C.acc,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          '8% off',
+          style: _body(Colors.white, 13.5, w: FontWeight.w800),
+        ),
       ),
       'Weekend spice sale',
       'Top offer on app home',
@@ -1096,114 +1318,163 @@ class _ProductsMock extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(compact ? 14 : 24),
       decoration: BoxDecoration(
-          color: _C.priSoft, borderRadius: BorderRadius.circular(compact ? 24 : 32)),
-      child: Column(children: [
-        Container(
-          padding: EdgeInsets.all(compact ? 14 : 20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
+        color: _C.priSoft,
+        borderRadius: BorderRadius.circular(compact ? 24 : 32),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(compact ? 14 : 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
                   color: _a(_C.ink, .08),
                   blurRadius: 30,
-                  offset: const Offset(0, 10)),
-            ],
-          ),
-          child: Column(children: [
-            Row(children: [
-              Expanded(
-                child: Text('Products and prices',
-                    style: _body(_C.ink, 16.5, w: FontWeight.w800)),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                    color: _C.bg, borderRadius: BorderRadius.circular(20)),
-                child: Text('Sample view',
-                    style: _body(_C.sub, 12, w: FontWeight.w700)),
-              ),
-            ]),
-            const SizedBox(height: 14),
-            if (!compact)
-            Container(
-              padding: const EdgeInsets.only(bottom: 8),
-              decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: _C.line))),
-              child: Row(children: [
-                Expanded(
-                    child: Text('Product',
-                        style: _body(_C.sub, 12, w: FontWeight.w700))),
-                SizedBox(
-                    width: 54,
-                    child: Text('Home',
-                        textAlign: TextAlign.right,
-                        style: _body(_C.sub, 12, w: FontWeight.w700))),
-                const SizedBox(width: 12),
-                SizedBox(
-                    width: 54,
-                    child: Text('Shop',
-                        textAlign: TextAlign.right,
-                        style: _body(_C.sub, 12, w: FontWeight.w700))),
-              ]),
-            ),
-            for (var i = 0; i < _rows.length; i++)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  border: i == _rows.length - 1
-                      ? null
-                      : const Border(bottom: BorderSide(color: _C.line)),
+                  offset: const Offset(0, 10),
                 ),
-                child: Row(children: [
-                  _ProductImage(
-                      asset: _rows[i].$5, width: 46, height: 46, radius: 10),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Products and prices',
+                        style: _body(_C.ink, 16.5, w: FontWeight.w800),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _C.bg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Sample view',
+                        style: _body(_C.sub, 12, w: FontWeight.w700),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (!compact)
+                  Container(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: _C.line)),
+                    ),
+                    child: Row(
                       children: [
-                        Text(_rows[i].$1,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _body(_C.ink, 14, w: FontWeight.w700)),
-                        Text(_rows[i].$2,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _body(_C.sub, 12)),
-                        if (compact) ...[
-                          const SizedBox(height: 8),
-                          Wrap(spacing: 6, runSpacing: 6, children: [
-                            _priceChip('Home', _rows[i].$3, false),
-                            _priceChip('Shop', _rows[i].$4, true),
-                          ]),
+                        Expanded(
+                          child: Text(
+                            'Product',
+                            style: _body(_C.sub, 12, w: FontWeight.w700),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 54,
+                          child: Text(
+                            'Home',
+                            textAlign: TextAlign.right,
+                            style: _body(_C.sub, 12, w: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 54,
+                          child: Text(
+                            'Shop',
+                            textAlign: TextAlign.right,
+                            style: _body(_C.sub, 12, w: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                for (var i = 0; i < _rows.length; i++)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: i == _rows.length - 1
+                          ? null
+                          : const Border(bottom: BorderSide(color: _C.line)),
+                    ),
+                    child: Row(
+                      children: [
+                        _ProductImage(
+                          asset: _rows[i].$5,
+                          width: 46,
+                          height: 46,
+                          radius: 10,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _rows[i].$1,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _body(_C.ink, 14, w: FontWeight.w700),
+                              ),
+                              Text(
+                                _rows[i].$2,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _body(_C.sub, 12),
+                              ),
+                              if (compact) ...[
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: [
+                                    _priceChip('Home', _rows[i].$3, false),
+                                    _priceChip('Shop', _rows[i].$4, true),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        if (!compact) ...[
+                          const SizedBox(width: 8),
+                          _price(_rows[i].$3),
+                          const SizedBox(width: 12),
+                          _price(_rows[i].$4, shop: true),
                         ],
                       ],
                     ),
                   ),
-                  if (!compact) ...[
-                    const SizedBox(width: 8),
-                    _price(_rows[i].$3),
-                    const SizedBox(width: 12),
-                    _price(_rows[i].$4, shop: true),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (_, box) {
+              if (box.maxWidth >= 440) {
+                return Row(
+                  children: [
+                    Expanded(child: offer),
+                    const SizedBox(width: 16),
+                    Expanded(child: bulk),
                   ],
-                ]),
-              ),
-          ]),
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(builder: (_, box) {
-          if (box.maxWidth >= 440) {
-            return Row(children: [
-              Expanded(child: offer),
-              const SizedBox(width: 16),
-              Expanded(child: bulk),
-            ]);
-          }
-          return Column(children: [offer, const SizedBox(height: 12), bulk]);
-        }),
-      ]),
+                );
+              }
+              return Column(
+                children: [offer, const SizedBox(height: 12), bulk],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1236,48 +1507,65 @@ class _AppPriceCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(22)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-                color: chipBg, borderRadius: BorderRadius.circular(20)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: 16, color: chipFg),
-              const SizedBox(width: 8),
-              Text(label, style: _body(chipFg, 13, w: FontWeight.w700)),
-            ]),
+              color: chipBg,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: chipFg),
+                const SizedBox(width: 8),
+                Text(label, style: _body(chipFg, 13, w: FontWeight.w700)),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           const _ProductImage(
-              asset: 'assets/landing/cutter_mirch_200g.jpg',
-              width: double.infinity,
-              height: 160,
-              radius: 14,
-              padding: 8),
+            asset: 'assets/landing/cutter_mirch_200g.jpg',
+            width: double.infinity,
+            height: 160,
+            radius: 14,
+            padding: 8,
+          ),
           const SizedBox(height: 12),
-          Text('Cutter Mirch 200G',
-              style: _body(_C.ink, 14.5, w: FontWeight.w700)),
+          Text(
+            'Cutter Mirch 200G',
+            style: _body(_C.ink, 14.5, w: FontWeight.w700),
+          ),
           Text('Milan Foods', style: _body(_C.sub, 12)),
           const SizedBox(height: 4),
-          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(price, style: _body(_C.priInk, 22, w: FontWeight.w800)),
-            const SizedBox(width: 8),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 3),
-              child: Text(caption, style: _body(_C.sub, 12)),
-            ),
-          ]),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(price, style: _body(_C.priInk, 22, w: FontWeight.w800)),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text(caption, style: _body(_C.sub, 12)),
+              ),
+            ],
+          ),
           if (bulk) ...[
             const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
               decoration: BoxDecoration(
-                  color: _C.priSoft, borderRadius: BorderRadius.circular(20)),
-              child: Text('Bulk tiers available',
-                  style: _body(_C.priInk, 12, w: FontWeight.w700)),
+                color: _C.priSoft,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                'Bulk tiers available',
+                style: _body(_C.priInk, 12, w: FontWeight.w700),
+              ),
             ),
           ],
         ],
@@ -1293,10 +1581,10 @@ class _Logo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: size,
-        height: size,
-        child: CustomPaint(painter: _LogoPainter()),
-      );
+    width: size,
+    height: size,
+    child: CustomPaint(painter: _LogoPainter()),
+  );
 }
 
 class _LogoPainter extends CustomPainter {
@@ -1312,9 +1600,12 @@ class _LogoPainter extends CustomPainter {
         colors: [Color(0xFF16A57F), Color(0xFF0B6650)],
       ).createShader(const Rect.fromLTWH(0, 0, 64, 64));
     canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            const Rect.fromLTWH(0, 0, 64, 64), const Radius.circular(18)),
-        bg);
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(0, 0, 64, 64),
+        const Radius.circular(18),
+      ),
+      bg,
+    );
 
     final basket = Path()
       ..moveTo(15, 29)
@@ -1330,12 +1621,13 @@ class _LogoPainter extends CustomPainter {
       ..moveTo(22, 29)
       ..cubicTo(22, 18, 42, 18, 42, 29);
     canvas.drawPath(
-        handle,
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3.6
-          ..strokeCap = StrokeCap.round);
+      handle,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.6
+        ..strokeCap = StrokeCap.round,
+    );
 
     final leaf = Path()
       ..moveTo(33, 19)
@@ -1389,13 +1681,16 @@ class _GreenButtonState extends State<_GreenButton> {
               width: 22,
               height: 22,
               child: CircularProgressIndicator(
-                  strokeWidth: 2.6, color: Colors.white),
+                strokeWidth: 2.6,
+                color: Colors.white,
+              ),
             ),
           ]
         : <Widget>[
-            Text(widget.label,
-                style: _body(Colors.white, widget.fontSize,
-                    w: FontWeight.w800)),
+            Text(
+              widget.label,
+              style: _body(Colors.white, widget.fontSize, w: FontWeight.w800),
+            ),
             if (widget.icon != null) ...[
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -1423,21 +1718,24 @@ class _GreenButtonState extends State<_GreenButton> {
             height: widget.height,
             width: widget.expand ? double.infinity : null,
             padding: EdgeInsets.symmetric(horizontal: widget.expand ? 0 : 24),
-            transform:
-                Matrix4.translationValues(0, _hover && enabled ? -2 : 0, 0),
+            transform: Matrix4.translationValues(
+              0,
+              _hover && enabled ? -2 : 0,
+              0,
+            ),
             decoration: BoxDecoration(
               color: _hover && enabled ? _C.priInk : _C.pri,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
-                    color: _a(_C.pri, _hover ? .38 : .24),
-                    blurRadius: _hover ? 24 : 16,
-                    offset: Offset(0, _hover ? 10 : 6)),
+                  color: _a(_C.pri, _hover ? .38 : .24),
+                  blurRadius: _hover ? 24 : 16,
+                  offset: Offset(0, _hover ? 10 : 6),
+                ),
               ],
             ),
             child: Row(
-              mainAxisSize:
-                  widget.expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisSize: widget.expand ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: children,
@@ -1483,11 +1781,16 @@ class _WhiteButtonState extends State<_WhiteButton> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(widget.label,
-                  style: _body(_C.priInk, 16, w: FontWeight.w800)),
+              Text(
+                widget.label,
+                style: _body(_C.priInk, 16, w: FontWeight.w800),
+              ),
               const SizedBox(width: 10),
-              const Icon(Icons.arrow_forward_rounded,
-                  size: 20, color: _C.priInk),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 20,
+                color: _C.priInk,
+              ),
             ],
           ),
         ),
@@ -1524,15 +1827,22 @@ class _GhostButtonState extends State<_GhostButton> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: _hover ? _C.pri : const Color(0xFFC9D6D0), width: 1.5),
+              color: _hover ? _C.pri : const Color(0xFFC9D6D0),
+              width: 1.5,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(widget.label,
-                  style: _body(_hover ? _C.priInk : _C.ink, 15.5,
-                      w: FontWeight.w700)),
+              Text(
+                widget.label,
+                style: _body(
+                  _hover ? _C.priInk : _C.ink,
+                  15.5,
+                  w: FontWeight.w700,
+                ),
+              ),
             ],
           ),
         ),
@@ -1596,14 +1906,14 @@ class _HoverCardState extends State<_HoverCard> {
         decoration: BoxDecoration(
           color: const Color(0xFFF6F9F8),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: _hover ? _C.pri : _C.line, width: 1.5),
+          border: Border.all(color: _hover ? _C.pri : _C.line, width: 1.5),
           boxShadow: [
             if (_hover)
               BoxShadow(
-                  color: _a(_C.pri, .14),
-                  blurRadius: 30,
-                  offset: const Offset(0, 14)),
+                color: _a(_C.pri, .14),
+                blurRadius: 30,
+                offset: const Offset(0, 14),
+              ),
           ],
         ),
         child: widget.child,
@@ -1643,12 +1953,13 @@ class _ProductImage extends StatelessWidget {
       child: Image.asset(
         asset,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Icon(
-            Icons.image_outlined, color: _C.sub),
+        errorBuilder: (_, __, ___) =>
+            const Icon(Icons.image_outlined, color: _C.sub),
       ),
     );
   }
 }
+
 /// Text field with the label above, a soft filled surface and a green focus
 /// ring. Same layout as the old PrimaryTextField (header, hint, rounded box).
 class _AuthField extends StatefulWidget {
@@ -1713,9 +2024,14 @@ class _AuthFieldState extends State<_AuthField> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 8),
-          child: Text(widget.label,
-              style: _body(focused ? _C.priInk : _C.ink, 13.5,
-                  w: FontWeight.w700)),
+          child: Text(
+            widget.label,
+            style: _body(
+              focused ? _C.priInk : _C.ink,
+              13.5,
+              w: FontWeight.w700,
+            ),
+          ),
         ),
         MouseRegion(
           onEnter: (_) => setState(() => _hover = true),
@@ -1730,14 +2046,16 @@ class _AuthFieldState extends State<_AuthField> {
               boxShadow: [
                 if (focused)
                   BoxShadow(
-                      color: _a(_C.pri, .16), blurRadius: 0, spreadRadius: 4),
+                    color: _a(_C.pri, .16),
+                    blurRadius: 0,
+                    spreadRadius: 4,
+                  ),
               ],
             ),
             child: Row(
               children: [
                 const SizedBox(width: 16),
-                Icon(widget.icon,
-                    size: 20, color: focused ? _C.pri : _C.sub),
+                Icon(widget.icon, size: 20, color: focused ? _C.pri : _C.sub),
                 Expanded(
                   child: TextField(
                     controller: widget.controller,
@@ -1761,7 +2079,9 @@ class _AuthFieldState extends State<_AuthField> {
                       focusedErrorBorder: InputBorder.none,
                       filled: false,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 17),
+                        horizontal: 14,
+                        vertical: 17,
+                      ),
                     ),
                   ),
                 ),

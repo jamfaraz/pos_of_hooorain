@@ -6,7 +6,6 @@ import 'package:hoorain_pos/utils/toas_message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:hoorain_pos/constants.dart';
 import '../models/category_model.dart';
 
 class CategoryController extends GetxController {
@@ -99,7 +98,10 @@ class CategoryController extends GetxController {
         imageUrl.value = '';
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to pick image: ${e.toString()}');
+      MessageToast.showError(
+        msg: 'Failed to pick image: ${e.toString()}',
+        title: 'Error',
+      );
     }
   }
 
@@ -117,7 +119,10 @@ class CategoryController extends GetxController {
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      Get.snackbar('Error', 'Failed to upload image: ${e.toString()}');
+      MessageToast.showError(
+        msg: 'Failed to upload image: ${e.toString()}',
+        title: 'Error',
+      );
       return null;
     }
   }
@@ -165,12 +170,7 @@ class CategoryController extends GetxController {
       Get.back();
       MessageToast.showToast(msg: 'Category added successfully');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        e.toString(),
-        colorText: Colors.white,
-        backgroundColor: kRedColor,
-      );
+      MessageToast.showError(msg: e.toString(), title: 'Error');
     } finally {
       isAdding.value = false;
     }

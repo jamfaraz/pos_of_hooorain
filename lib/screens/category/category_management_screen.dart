@@ -16,6 +16,7 @@ import '../../widgets/retry_widget.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/side_drawer.dart';
 import '../products/product_editor_drawer.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class CategoryManagementScreen extends GetView<CategoryManagementController> {
   const CategoryManagementScreen({super.key});
@@ -134,9 +135,9 @@ class CategoryManagementScreen extends GetView<CategoryManagementController> {
                                           try {
                                             await controller.delete(category);
                                           } catch (exception) {
-                                            Get.snackbar(
-                                              'Cannot delete category',
-                                              exception.toString(),
+                                            MessageToast.showError(
+                                              msg: exception.toString(),
+                                              title: 'Cannot delete category',
                                             );
                                           }
                                         },
@@ -715,7 +716,10 @@ class CategoryManagementScreen extends GetView<CategoryManagementController> {
                 );
                 if (context.mounted) Navigator.of(context).pop();
               } catch (exception) {
-                Get.snackbar('Could not save category', exception.toString());
+                MessageToast.showError(
+                  msg: exception.toString(),
+                  title: 'Could not save category',
+                );
               } finally {
                 saving = false;
               }

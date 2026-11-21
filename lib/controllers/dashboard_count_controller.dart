@@ -25,31 +25,37 @@ class DashboardCountsController extends GetxController {
   void _listenCustomers() {
     isLoadingCustomers.value = true;
     _customersSub?.cancel();
-    _customersSub = _firestore.collection('users').snapshots().listen(
-      (snapshot) {
-        customersCount.value = snapshot.size;
-        isLoadingCustomers.value = false;
-      },
-      onError: (e) {
-        print('Error listening to customers count: $e');
-        isLoadingCustomers.value = false;
-      },
-    );
+    _customersSub = _firestore
+        .collection('users')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            customersCount.value = snapshot.size;
+            isLoadingCustomers.value = false;
+          },
+          onError: (e) {
+            print('Error listening to customers count: $e');
+            isLoadingCustomers.value = false;
+          },
+        );
   }
 
   void _listenProducts() {
     isLoadingProducts.value = true;
     _productsSub?.cancel();
-    _productsSub = _firestore.collection('products').snapshots().listen(
-      (snapshot) {
-        productsCount.value = snapshot.size;
-        isLoadingProducts.value = false;
-      },
-      onError: (e) {
-        print('Error listening to products count: $e');
-        isLoadingProducts.value = false;
-      },
-    );
+    _productsSub = _firestore
+        .collection('products')
+        .snapshots()
+        .listen(
+          (snapshot) {
+            productsCount.value = snapshot.size;
+            isLoadingProducts.value = false;
+          },
+          onError: (e) {
+            print('Error listening to products count: $e');
+            isLoadingProducts.value = false;
+          },
+        );
   }
 
   /// Optional: manual refresh (e.g. pull-to-refresh)

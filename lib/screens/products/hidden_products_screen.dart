@@ -90,11 +90,9 @@ class _HiddenProductsScreenState extends State<HiddenProductsScreen>
       await fetchProductController.unhideProduct(product.id!);
       MessageToast.showToast(msg: 'Product is now visible to customers');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to update product: $e',
-        backgroundColor: const Color(0xFFEF4444),
-        colorText: Colors.white,
+      MessageToast.showError(
+        msg: 'Failed to update product: $e',
+        title: 'Error',
       );
     }
   }
@@ -104,11 +102,9 @@ class _HiddenProductsScreenState extends State<HiddenProductsScreen>
       await fetchProductController.deleteProduct(productId);
       MessageToast.showToast(msg: 'Product deleted successfully');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to delete product: $e',
-        backgroundColor: const Color(0xFFEF4444),
-        colorText: Colors.white,
+      MessageToast.showError(
+        msg: 'Failed to delete product: $e',
+        title: 'Error',
       );
     }
   }

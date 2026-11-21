@@ -222,6 +222,13 @@ class DashboardScreen extends GetView<DashboardController> {
           icon: PhosphorIconsRegular.warningCircle,
           color: controller.lowStock.isEmpty ? AppColors.ok : AppColors.warning,
         );
+        final inventoryKpi = _KpiData(
+          label: 'Inventory value',
+          value: Money.rs(controller.inventoryStockValue),
+          note: 'Stock tied up at recorded cost',
+          icon: PhosphorIconsRegular.warehouse,
+          color: AppColors.info,
+        );
 
         const gap = SizedBox(height: 16);
         Widget two(Widget a, Widget b, {int fa = 3, int fb = 2}) => wide
@@ -266,7 +273,13 @@ class DashboardScreen extends GetView<DashboardController> {
               loading
                   ? loader
                   : _KpiWrap(
-                      items: [ordersKpi, profitKpi, avgKpi, lowKpi],
+                      items: [
+                        inventoryKpi,
+                        ordersKpi,
+                        profitKpi,
+                        avgKpi,
+                        lowKpi,
+                      ],
                       cols: wide || w >= 560 ? 2 : 1,
                     ),
               trend,
@@ -286,7 +299,13 @@ class DashboardScreen extends GetView<DashboardController> {
             loading
                 ? loader
                 : _KpiStrip(
-                    items: [salesKpi, profitKpi, ordersKpi, lowKpi],
+                    items: [
+                      salesKpi,
+                      inventoryKpi,
+                      profitKpi,
+                      ordersKpi,
+                      lowKpi,
+                    ],
                     wide: wide,
                   ),
             gap,
@@ -477,7 +496,8 @@ class DashboardScreen extends GetView<DashboardController> {
     final low = controller.lowStock;
     return _Panel(
       title: 'Stock attention',
-      subtitle: 'Products at or below reorder point',
+      subtitle:
+          'Inventory value ${Money.rs(controller.inventoryStockValue)} · ${low.length} at or below reorder point',
       icon: PhosphorIconsRegular.package,
       trailing: TextButton(
         onPressed: () => Get.toNamed('/inventory'),

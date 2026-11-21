@@ -107,15 +107,16 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   void _playVideo() {
     if (localVideoFile.value != null) {
-      Get.to(() => VideoPlayerScreen(
-        videoUrl: '',
-        localVideoFile: localVideoFile.value,
-      ));
+      Get.to(
+        () => VideoPlayerScreen(
+          videoUrl: '',
+          localVideoFile: localVideoFile.value,
+        ),
+      );
     } else if (videoUrl != null && videoUrl!.isNotEmpty) {
-      Get.to(() => VideoPlayerScreen(
-        videoUrl: videoUrl!,
-        localVideoFile: null,
-      ));
+      Get.to(
+        () => VideoPlayerScreen(videoUrl: videoUrl!, localVideoFile: null),
+      );
     }
   }
 
@@ -186,13 +187,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
       MessageToast.showToast(msg: 'Please enter description');
       return false;
     }
-    
+
     if (quantityController.text.isEmpty ||
         int.tryParse(quantityController.text) == null) {
       MessageToast.showToast(msg: 'Please enter a valid quantity');
       return false;
     }
-    
+
     final quantity = int.parse(quantityController.text.trim());
     if (quantity < 0) {
       MessageToast.showToast(msg: 'Quantity cannot be negative');
@@ -507,9 +508,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
                         ),
                         SizedBox(width: 8),
                         Text(
-                          isOutOfStock.value
-                              ? 'Out of Stock'
-                              : 'In Stock',
+                          isOutOfStock.value ? 'Out of Stock' : 'In Stock',
                           style: GoogleFonts.inter(
                             fontWeight: FontWeight.w600,
                             fontSize: 13.sp,
@@ -540,11 +539,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
                     onChanged: (bool value) {
                       isOutOfStock.value = value;
                       if (!value && int.parse(quantityController.text) == 0) {
-                        Get.snackbar(
-                          'Warning',
-                          'Product has 0 quantity. Please update quantity.',
-                          backgroundColor: Colors.orange,
-                          colorText: Colors.white,
+                        MessageToast.showWarning(
+                          msg:
+                              'Product has 0 quantity. Please update quantity.',
+                          title: 'Warning',
                         );
                       }
                     },
@@ -615,322 +613,337 @@ class _EditProductScreenState extends State<EditProductScreen> {
     );
   }
 
-Widget _buildImageSection() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        'Product Image',
-        style: GoogleFonts.inter(
-          fontSize: 16.sp,
-          fontWeight: FontWeight.w600,
+  Widget _buildImageSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Product Image',
+          style: GoogleFonts.inter(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
-      const SizedBox(height: 8),
-      
-      // Image Container with better UX
-      Container(
-        height: 188.h,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade400, width: 1),
-          borderRadius: BorderRadius.circular(12.0),
-          color: Colors.white,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12.0),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Image Display
-              Obx(() {
-                if (localImageFile.value != null) {
-                  // Newly picked image
-                  return Image.file(
-                    localImageFile.value!,
-                    fit: BoxFit.contain,
-                  );
-                } else if (imageUrl != null && imageUrl!.isNotEmpty) {
-                  // Existing image from URL
-                  return CachedNetworkImage(
-                    imageUrl: imageUrl!,
-                    fit: BoxFit.contain,
-                    placeholder: (context, url) => Container(
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: kPrimaryColor,
+        const SizedBox(height: 8),
+
+        // Image Container with better UX
+        Container(
+          height: 188.h,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400, width: 1),
+            borderRadius: BorderRadius.circular(12.0),
+            color: Colors.white,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12.0),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Image Display
+                Obx(() {
+                  if (localImageFile.value != null) {
+                    // Newly picked image
+                    return Image.file(
+                      localImageFile.value!,
+                      fit: BoxFit.contain,
+                    );
+                  } else if (imageUrl != null && imageUrl!.isNotEmpty) {
+                    // Existing image from URL
+                    return CachedNetworkImage(
+                      imageUrl: imageUrl!,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[200],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: kPrimaryColor,
+                          ),
                         ),
                       ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[200],
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 48,
-                            color: Colors.red.shade400,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Failed to load image',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                } else {
-                  // No image
-                  return Container(
-                    color: Colors.grey[200],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.image_outlined,
-                          size: 64,
-                          color: Colors.grey.shade400,
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'No image selected',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              }),
-              
-              // Overlay with action buttons
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Row(
-                  children: [
-                    // Delete Button - ONLY for newly selected image
-                    Obx(() {
-                      if (localImageFile.value != null) {
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              Icons.delete_outline,
-                              size: 18,
-                              color: Colors.red.shade700,
-                            ),
-                            onPressed: _removeImage,
-                            padding: EdgeInsets.all(6),
-                            constraints: BoxConstraints(),
-                          ),
-                        );
-                      }
-                      return SizedBox.shrink();
-                    }),
-                    
-                    SizedBox(width: 8),
-                    
-                    // Change Image Button (always visible)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: kPrimaryColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: IconButton(
-                        icon: Icon(
-                          Icons.edit_outlined,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                        onPressed: _pickImage,
-                        padding: EdgeInsets.all(6),
-                        constraints: BoxConstraints(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // See Full Image Button (only for existing URL images, not for new selections)
-              if (imageUrl != null && 
-                  imageUrl!.isNotEmpty && 
-                  localImageFile.value == null)
-                Positioned(
-                  bottom: 7,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        Get.to(() => FullImageScreen(imageUrl: imageUrl ?? ''));
-                      },
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[200],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.fullscreen,
-                              size: 16,
-                              color: Colors.white,
+                              Icons.error_outline,
+                              size: 48,
+                              color: Colors.red.shade400,
                             ),
-                            SizedBox(width: 4),
+                            SizedBox(height: 8),
                             Text(
-                              'View Full Image',
+                              'Failed to load image',
                               style: GoogleFonts.inter(
                                 fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade600,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
+                    );
+                  } else {
+                    // No image
+                    return Container(
+                      color: Colors.grey[200],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.image_outlined,
+                            size: 64,
+                            color: Colors.grey.shade400,
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'No image selected',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                }),
+
+                // Overlay with action buttons
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Row(
+                    children: [
+                      // Delete Button - ONLY for newly selected image
+                      Obx(() {
+                        if (localImageFile.value != null) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: Colors.red.shade700,
+                              ),
+                              onPressed: _removeImage,
+                              padding: EdgeInsets.all(6),
+                              constraints: BoxConstraints(),
+                            ),
+                          );
+                        }
+                        return SizedBox.shrink();
+                      }),
+
+                      SizedBox(width: 8),
+
+                      // Change Image Button (always visible)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: kPrimaryColor,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.edit_outlined,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          onPressed: _pickImage,
+                          padding: EdgeInsets.all(6),
+                          constraints: BoxConstraints(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+
+                // See Full Image Button (only for existing URL images, not for new selections)
+                if (imageUrl != null &&
+                    imageUrl!.isNotEmpty &&
+                    localImageFile.value == null)
+                  Positioned(
+                    bottom: 7,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          Get.to(
+                            () => FullImageScreen(imageUrl: imageUrl ?? ''),
+                          );
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.fullscreen,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'View Full Image',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
-      ),
-      
-      // Info Message about current image state
-      Obx(() {
-        if (localImageFile.value != null) {
-          return Padding(
-            padding: EdgeInsets.only(top: 8.sp),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'New image selected. Tap delete button to cancel or save to update.',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.blue.shade700,
+
+        // Info Message about current image state
+        Obx(() {
+          if (localImageFile.value != null) {
+            return Padding(
+              padding: EdgeInsets.only(top: 8.sp),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.blue.shade700,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'New image selected. Tap delete button to cancel or save to update.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        } else if (imageUrl != null && imageUrl!.isNotEmpty) {
-          return Padding(
-            padding: EdgeInsets.only(top: 8.sp),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_outline, size: 16, color: Colors.green.shade700),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Current image loaded. Tap edit button to change.',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.green.shade700,
+            );
+          } else if (imageUrl != null && imageUrl!.isNotEmpty) {
+            return Padding(
+              padding: EdgeInsets.only(top: 8.sp),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 16,
+                      color: Colors.green.shade700,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Current image loaded. Tap edit button to change.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.green.shade700,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        } else {
-          return Padding(
-            padding: EdgeInsets.only(top: 8.sp),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.warning_amber_outlined, size: 16, color: Colors.orange.shade700),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'No image selected. Tap edit button to add an image.',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: Colors.orange.shade700,
+            );
+          } else {
+            return Padding(
+              padding: EdgeInsets.only(top: 8.sp),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_outlined,
+                      size: 16,
+                      color: Colors.orange.shade700,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No image selected. Tap edit button to add an image.',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        }
-      }),
-      
-      // Help text
-      Padding(
-        padding: EdgeInsets.only(top: 8.sp),
-        child: Text(
-          'Tap the edit button to change image. Supports JPG, PNG, GIF',
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            color: Colors.grey.shade500,
+            );
+          }
+        }),
+
+        // Help text
+        Padding(
+          padding: EdgeInsets.only(top: 8.sp),
+          child: Text(
+            'Tap the edit button to change image. Supports JPG, PNG, GIF',
+            style: GoogleFonts.inter(fontSize: 11, color: Colors.grey.shade500),
           ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   Widget _buildVideoSection() {
-    final currentImageUrl = localImageFile.value != null 
-        ? null 
+    final currentImageUrl = localImageFile.value != null
+        ? null
         : (imageUrl ?? widget.product.imageUrl);
-    
-    final hasVideo = (videoUrl != null && videoUrl!.isNotEmpty) || 
-                     localVideoFile.value != null;
-    
+
+    final hasVideo =
+        (videoUrl != null && videoUrl!.isNotEmpty) ||
+        localVideoFile.value != null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -962,21 +975,22 @@ Widget _buildImageSection() {
                           color: Colors.grey[200],
                           child: Stack(
                             children: [
-                              if (currentImageUrl != null && currentImageUrl.isNotEmpty)
+                              if (currentImageUrl != null &&
+                                  currentImageUrl.isNotEmpty)
                                 CachedNetworkImage(
                                   imageUrl: currentImageUrl,
                                   fit: BoxFit.cover,
-                                  placeholder: (context, url) => Container(
-                                    color: Colors.grey[200],
-                                  ),
-                                  errorWidget: (context, url, error) => Container(
-                                    color: Colors.grey[200],
-                                    child: Icon(
-                                      Icons.video_library,
-                                      size: 40,
-                                      color: Colors.grey[400],
-                                    ),
-                                  ),
+                                  placeholder: (context, url) =>
+                                      Container(color: Colors.grey[200]),
+                                  errorWidget: (context, url, error) =>
+                                      Container(
+                                        color: Colors.grey[200],
+                                        child: Icon(
+                                          Icons.video_library,
+                                          size: 40,
+                                          color: Colors.grey[400],
+                                        ),
+                                      ),
                                 )
                               else
                                 Container(
@@ -1002,12 +1016,10 @@ Widget _buildImageSection() {
                                     ],
                                   ),
                                 ),
-                              
+
                               // Dark overlay
-                              Container(
-                                color: Colors.black.withOpacity(0.3),
-                              ),
-                              
+                              Container(color: Colors.black.withOpacity(0.3)),
+
                               // Play button
                               Center(
                                 child: Container(
@@ -1025,7 +1037,7 @@ Widget _buildImageSection() {
                             ],
                           ),
                         ),
-                        
+
                         // Remove button
                         Positioned(
                           top: 8,
@@ -1089,13 +1101,10 @@ Widget _buildImageSection() {
           Padding(
             padding: EdgeInsets.only(top: 8.sp),
             child: Text(
-              localVideoFile.value != null 
+              localVideoFile.value != null
                   ? 'New video selected - tap to watch'
                   : 'Video available - tap to watch',
-              style: GoogleFonts.inter(
-                fontSize: 12.sp,
-                color: kGreenColor,
-              ),
+              style: GoogleFonts.inter(fontSize: 12.sp, color: kGreenColor),
             ),
           ),
       ],

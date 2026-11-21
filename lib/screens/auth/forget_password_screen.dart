@@ -62,7 +62,7 @@
 //                 ),
 //               ),
 //               SizedBox(height: 49.h),
-      
+
 //               // Email TextField
 //               PrimaryTextField(
 //                 controller: emailController,
@@ -71,7 +71,7 @@
 //                 headerText: 'Email',
 //               ),
 //               SizedBox(height: 30.h),
-      
+
 //               // Reset Button
 //               Obx(
 //                 () => Center(

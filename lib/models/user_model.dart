@@ -76,7 +76,9 @@ class UserModel {
       'isVerified': isVerified,
       'isBanned': isBanned,
       'emailVerified': emailVerified,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
       'totalOrders': totalOrders ?? 0,
       'totalSpent': totalSpent ?? 0.0,
     };

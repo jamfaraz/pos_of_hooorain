@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class AdminAccessService extends GetxService {
   AdminAccessService({FirebaseAuth? auth, FirebaseFirestore? firestore})
@@ -55,10 +56,9 @@ class AdminAccessService extends GetxService {
 
     await _auth.signOut();
     if (notificationCleanupError != null) {
-      Get.snackbar(
-        'Signed out',
-        'Could not clear this device’s notification token.',
-        snackPosition: SnackPosition.BOTTOM,
+      MessageToast.showSuccess(
+        msg: 'Could not clear this device’s notification token.',
+        title: 'Signed out',
       );
     }
   }

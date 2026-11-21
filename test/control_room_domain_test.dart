@@ -6,8 +6,33 @@ import 'package:hoorain_pos/utils/pricing.dart';
 import 'package:hoorain_pos/utils/profit_analysis.dart';
 import 'package:hoorain_pos/utils/rider_pay.dart';
 import 'package:hoorain_pos/utils/dashboard_metrics.dart';
+import 'package:hoorain_pos/utils/receipt_pdf.dart';
+import 'package:hoorain_pos/services/inventory_service.dart';
 
 void main() {
+  test('inventory stock value totals available quantity at recorded cost', () {
+    final products = [
+      ProductRecord(id: 'rice', name: 'Rice', stock: 8, cost: 90),
+      ProductRecord(id: 'tea', name: 'Tea', stock: 5, cost: 200),
+      ProductRecord(id: 'empty', name: 'Empty', stock: 0, cost: 500),
+    ];
+
+    expect(InventoryService.stockValue(products), 1720);
+  });
+
+  test('inventory uses the existing price for products without cost', () {
+    final product = ProductRecord(
+      id: 'legacy',
+      name: 'Legacy product',
+      stock: 4,
+      price: 125,
+      cost: 0,
+    );
+
+    expect(product.inventoryCost, 125);
+    expect(InventoryService.stockValue([product]), 500);
+  });
+
   group('product compatibility', () {
     test('maps legacy price, image, stock, flags and bulk pricing', () {
       final product = ProductRecord.fromMap({
@@ -241,5 +266,31 @@ void main() {
     expect(sellers.first.quantity, 5);
     expect(sellers.first.sales, 50);
     expect(sellers.last.quantity, 4);
+  });
+
+  test('receipt PDF renders itemized bill on thermal paper size', () async {
+    final receipt = await buildReceiptPdf(
+      billNumber: 'B-001',
+      customer: 'Walk-in customer',
+      phone: '',
+      date: DateTime(2026, 11, 21, 13),
+      items: const [
+        OrderLineRecord(
+          productId: 'rice',
+          name: 'Premium basmati rice 5 kg bag',
+          qty: 2,
+          unitPrice: 1200,
+        ),
+      ],
+      subtotal: 2400,
+      discount: 100,
+      delivery: 0,
+      total: 2300,
+      paymentMethod: 'cash',
+    );
+
+    expect(receipt.bytes.take(4).toList(), [37, 80, 68, 70]);
+    expect(receipt.format.width, closeTo(58 * 72 / 25.4, 0.01));
+    expect(receipt.format.height, greaterThan(0));
   });
 }

@@ -6,6 +6,7 @@ import 'package:iconsax/iconsax.dart';
 import '../controllers/theme_controller.dart';
 import '../services/admin_access_service.dart';
 import 'common_dialog.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -121,10 +122,9 @@ class _AppShellState extends State<AppShell> {
       await Get.find<AdminAccessService>().logout();
       if (mounted) Get.offAllNamed('/login');
     } catch (exception) {
-      Get.snackbar(
-        'Could not log out',
-        exception.toString(),
-        snackPosition: SnackPosition.BOTTOM,
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not log out',
       );
     }
   }

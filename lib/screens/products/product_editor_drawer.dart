@@ -12,6 +12,7 @@ import '../../widgets/app_toggle.dart';
 import '../../widgets/confirm_tap_button.dart';
 import '../../widgets/multi_image_uploader.dart';
 import '../../widgets/side_drawer.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 /// Star colour is semantic (not part of the brand palette).
 const Color _kStar = Color(0xFFE9A23B);
@@ -264,12 +265,11 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
       final deleted = await _controller.deleteOrHide(product);
       if (!mounted) return;
       Navigator.of(context).pop();
-      Get.snackbar(
-        deleted ? 'Product deleted' : 'Product hidden',
-        deleted
+      MessageToast.showSuccess(
+        msg: deleted
             ? 'The product was deleted.'
             : 'This product has sales history, so it was hidden instead.',
-        snackPosition: SnackPosition.BOTTOM,
+        title: deleted ? 'Product deleted' : 'Product hidden',
       );
     } catch (exception) {
       if (mounted) setState(() => _error = exception.toString());
@@ -460,7 +460,7 @@ class _ProductEditorDrawerState extends State<ProductEditorDrawer> {
       children: [
         _fieldLabel(label),
         DropdownButtonFormField<T>(
-          value: value,
+          initialValue: value,
           items: items,
           onChanged: onChanged,
           isExpanded: true,

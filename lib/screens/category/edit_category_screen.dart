@@ -119,24 +119,21 @@ class EditCategoryScreen extends StatelessWidget {
                             size: 24.w,
                             color: Colors.red,
                           ),
-                          onPressed:
-                              () => controller.removeSubcategoryField(index),
+                          onPressed: () =>
+                              controller.removeSubcategoryField(index),
                         ),
                       ],
                     ),
                   ),
                 ),
               ),
-              SizedBox(
-                height: 22,
-              ),
+              SizedBox(height: 22),
 
               // Add Subcategory Button
               OutlinedButton(
                 onPressed: controller.addSubcategoryField,
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 12.h),
-               
                 ),
                 child: Text(
                   'Add Subcategory',
@@ -158,7 +155,6 @@ class EditCategoryScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 22.h),
-
             ],
           ),
         ),
@@ -173,9 +169,8 @@ class EditCategoryScreen extends StatelessWidget {
       return CachedNetworkImage(
         imageUrl: controller.imageUrl.value,
         fit: BoxFit.cover,
-        placeholder:
-            (context, url) =>
-                Center(child: CircularProgressIndicator(color: kGreenColor)),
+        placeholder: (context, url) =>
+            Center(child: CircularProgressIndicator(color: kGreenColor)),
         errorWidget: (context, url, error) => Icon(Icons.error),
       );
     }
@@ -192,28 +187,25 @@ class EditCategoryScreen extends StatelessWidget {
     );
   }
 
-
-
-
-  void showsDeleteDialog(BuildContext context, 
+  void showsDeleteDialog(
+    BuildContext context,
     EditCategoryController controller,
   ) {
     showDialog(
       context: context,
-      builder:
-          (context) => CommonDialog(
-            title: 'Delete',
-            message:
-                'Do you want to delete the category. This action cannot be undone?',
-            icon: Icons.logout,
-            iconColor: kPrimaryColor,
-            negativeButtonText: 'Cancel',
-            positiveButtonText: 'Delete',
-            onPositiveButtonPressed: () async {
-                Navigator.pop(context);
-                  controller.deleteCategory(categoryId);
-            }
-          ),
+      builder: (context) => CommonDialog(
+        title: 'Delete',
+        message:
+            'Do you want to delete the category. This action cannot be undone?',
+        icon: Icons.logout,
+        iconColor: kPrimaryColor,
+        negativeButtonText: 'Cancel',
+        positiveButtonText: 'Delete',
+        onPositiveButtonPressed: () async {
+          Navigator.pop(context);
+          controller.deleteCategory(categoryId);
+        },
+      ),
     );
   }
 }

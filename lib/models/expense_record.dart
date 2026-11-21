@@ -9,7 +9,12 @@ const kExpenseCategories = <String>[
   'Other',
 ];
 
-const kPaymentMethods = <String>['Cash', 'Bank transfer', 'Easypaisa', 'JazzCash'];
+const kPaymentMethods = <String>[
+  'Cash',
+  'Bank transfer',
+  'Easypaisa',
+  'JazzCash',
+];
 
 /// Usual monthly spend, used until the admin saves their own budgets.
 const kDefaultExpenseBudgets = <String, double>{

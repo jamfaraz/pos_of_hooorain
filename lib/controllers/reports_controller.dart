@@ -22,10 +22,13 @@ class ReportsController extends GetxController {
   final exporting = false.obs;
   final loadingMore = false.obs;
   final error = RxnString();
+  final selectedMonth = DateTime(DateTime.now().year, DateTime.now().month).obs;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _productsSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _categoriesSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _ordersSub;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _billsSub;
+  final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
+  _rangeSubscriptions = [];
   DocumentSnapshot<Map<String, dynamic>>? _orderCursor;
   DocumentSnapshot<Map<String, dynamic>>? _billCursor;
   final Map<String, OrderRecord> _loadedOrderMap = {};
@@ -45,6 +48,10 @@ class ReportsController extends GetxController {
     _categoriesSub?.cancel();
     _ordersSub?.cancel();
     _billsSub?.cancel();
+    for (final subscription in _rangeSubscriptions) {
+      subscription.cancel();
+    }
+    _rangeSubscriptions.clear();
     loading.value = true;
     error.value = null;
     _loadedOrderMap.clear();
@@ -79,32 +86,31 @@ class ReportsController extends GetxController {
       );
       loading.value = false;
     }, onError: _handleError);
-    _ordersSub = _service.watchRecentOrders().listen((snapshot) {
-      for (final doc in snapshot.docs) {
-        _loadedOrderMap['orders:${doc.id}'] = OrderRecord.fromMap(
-          doc.data(),
-          doc.id,
-        );
-      }
-      if (_orderCursor == null && snapshot.docs.isNotEmpty) {
-        _orderCursor = snapshot.docs.last;
-      }
-      _ordersDone = snapshot.docs.length < ControlRoomService.pageSize;
-      updateOrders();
-    }, onError: _handleError);
-    _billsSub = _service.watchRecentBills().listen((snapshot) {
-      for (final doc in snapshot.docs) {
-        _loadedOrderMap['bills:${doc.id}'] = OrderRecord.fromMap(
-          doc.data(),
-          doc.id,
-        );
-      }
-      if (_billCursor == null && snapshot.docs.isNotEmpty) {
-        _billCursor = snapshot.docs.last;
-      }
-      _billsDone = snapshot.docs.length < ControlRoomService.pageSize;
-      updateOrders();
-    }, onError: _handleError);
+    final month = selectedMonth.value;
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 1);
+    final sources = <(String, String, String)>[
+      ('orders', 'orderDate', 'orders-orderDate'),
+      ('orders', 'createdAt', 'orders-createdAt'),
+      ('bills', 'orderDate', 'bills-orderDate'),
+      ('bills', 'createdAt', 'bills-createdAt'),
+    ];
+    final received = <String>{};
+    for (final (collection, field, source) in sources) {
+      final subscription = _service
+          .watchCollectionRange(collection, field, start, end)
+          .listen((snapshot) {
+            for (final doc in snapshot.docs) {
+              _loadedOrderMap['$collection:${doc.id}'] = OrderRecord.fromMap(
+                doc.data(),
+                doc.id,
+              );
+            }
+            received.add(source);
+            if (received.length == sources.length) updateOrders();
+          }, onError: _handleError);
+      _rangeSubscriptions.add(subscription);
+    }
   }
 
   void _handleError(Object exception) {
@@ -164,10 +170,21 @@ class ReportsController extends GetxController {
   }
 
   List<MapEntry<String, double>> get salesByDay {
-    final totals = <String, double>{};
+    final month = selectedMonth.value;
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final totals = <String, double>{
+      for (var day = 1; day <= daysInMonth; day++)
+        '${month.year}-${month.month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}':
+            0,
+    };
     for (final order in orders) {
       final date = order.createdAt;
       if (date == null) continue;
+      if (date.year != month.year || date.month != month.month) continue;
+      final status = order.status.trim().toLowerCase();
+      if ({'cancelled', 'canceled', 'rejected', 'returned'}.contains(status)) {
+        continue;
+      }
       final label =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       totals.update(
@@ -176,7 +193,39 @@ class ReportsController extends GetxController {
         ifAbsent: () => order.total,
       );
     }
-    return totals.entries.toList()..sort((a, b) => b.key.compareTo(a.key));
+    return totals.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+  }
+
+  double get selectedMonthSales =>
+      salesByDay.fold(0.0, (total, entry) => total + entry.value);
+
+  double get selectedMonthAverage {
+    final values = salesByDay;
+    if (values.isEmpty) return 0;
+    return selectedMonthSales / values.length;
+  }
+
+  MapEntry<String, double>? get selectedMonthBestDay {
+    final values = salesByDay;
+    if (values.isEmpty) return null;
+    return values.reduce(
+      (best, entry) => entry.value > best.value ? entry : best,
+    );
+  }
+
+  void previousMonth() {
+    final month = selectedMonth.value;
+    selectedMonth.value = DateTime(month.year, month.month - 1, 1);
+    reload();
+  }
+
+  void nextMonth() {
+    final month = selectedMonth.value;
+    final now = DateTime.now();
+    final next = DateTime(month.year, month.month + 1, 1);
+    if (next.isAfter(DateTime(now.year, now.month, 1))) return;
+    selectedMonth.value = next;
+    reload();
   }
 
   List<MapEntry<String, double>> get salesByCategory {
@@ -235,25 +284,9 @@ class ReportsController extends GetxController {
     error.value = null;
     try {
       final sections = <String, List<List<String>>>{
-        'Sales by day': [
+        'Daily sales': [
           ['Date', 'Sales'],
           ...salesByDay.map((entry) => [entry.key, Money.rs(entry.value)]),
-        ],
-        'Sales by category': [
-          ['Category', 'Sales'],
-          ...salesByCategory.map((entry) => [entry.key, Money.rs(entry.value)]),
-        ],
-        'Top products and profit': [
-          ['Product', 'Units', 'Sales', 'Profit'],
-          ...topProducts.map((product) {
-            final stats = productPerformance[product.id];
-            return [
-              product.name,
-              '${stats?.units ?? 0}',
-              Money.rs(stats?.sales ?? 0),
-              Money.rs(stats?.profit ?? 0),
-            ];
-          }),
         ],
       };
       return await _exporter.export(
@@ -274,6 +307,9 @@ class ReportsController extends GetxController {
     _categoriesSub?.cancel();
     _ordersSub?.cancel();
     _billsSub?.cancel();
+    for (final subscription in _rangeSubscriptions) {
+      subscription.cancel();
+    }
     super.onClose();
   }
 }

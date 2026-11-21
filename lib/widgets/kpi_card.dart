@@ -37,8 +37,7 @@ class KpiCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (icon != null)
-                Icon(icon, size: 19, color: color),
+              if (icon != null) Icon(icon, size: 19, color: color),
             ],
           ),
           const SizedBox(height: 12),

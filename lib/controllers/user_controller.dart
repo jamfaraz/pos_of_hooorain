@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 
 import '../models/user_model.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class UsersController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -123,7 +124,10 @@ class UsersController extends GetxController {
       });
       fetchUsers();
     } catch (e) {
-      Get.snackbar('Error', 'Failed to update ban status: $e');
+      MessageToast.showError(
+        msg: 'Failed to update ban status: $e',
+        title: 'Error',
+      );
     }
   }
 
@@ -134,7 +138,10 @@ class UsersController extends GetxController {
       });
       fetchUsers();
     } catch (e) {
-      Get.snackbar('Error', 'Failed to update verification status: $e');
+      MessageToast.showError(
+        msg: 'Failed to update verification status: $e',
+        title: 'Error',
+      );
     }
   }
 
@@ -147,7 +154,10 @@ class UsersController extends GetxController {
       await _firestore.collection('users').doc(userId).update(updates);
       await fetchUsers();
     } catch (e) {
-      Get.snackbar('Error', 'Failed to update shop request: $e');
+      MessageToast.showError(
+        msg: 'Failed to update shop request: $e',
+        title: 'Error',
+      );
     }
   }
 }

@@ -29,22 +29,15 @@ class AdminCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Container(
-        margin: EdgeInsets.symmetric(
-          vertical: 6
-        ),
+        margin: EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+          color: Colors.grey.shade100,
 
           borderRadius: BorderRadius.circular(5.r),
         ),
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: 8.w,
-            vertical: 13.h,
-          ),
-          child: isFullWidth 
-              ? _buildRowLayout()
-              : _buildColumnLayout(),
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 13.h),
+          child: isFullWidth ? _buildRowLayout() : _buildColumnLayout(),
         ),
       ),
     );
@@ -55,12 +48,7 @@ class AdminCard extends StatelessWidget {
       children: [
         Icon(icon, color: iconColor, size: 30.sp),
         SizedBox(height: 12.h),
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
         SizedBox(height: 8.h),
         Text(
           value,
@@ -78,12 +66,7 @@ class AdminCard extends StatelessWidget {
       children: [
         Icon(icon, color: iconColor, size: 24.sp),
         SizedBox(width: 8.w),
-        Text(
-          title,
-          style: GoogleFonts.inter(
-            fontSize: 14.sp,
-          ),
-        ),
+        Text(title, style: GoogleFonts.inter(fontSize: 14.sp)),
         const Spacer(),
         if (value.isNotEmpty)
           Text(

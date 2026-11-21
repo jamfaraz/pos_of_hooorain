@@ -21,6 +21,7 @@ import '../../widgets/retry_widget.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/side_drawer.dart';
 import '../../widgets/status_chip.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class RidersScreen extends GetView<RidersController> {
   const RidersScreen({super.key});
@@ -464,7 +465,7 @@ class RidersScreen extends GetView<RidersController> {
       if (creating.value) return;
       final problem = validate();
       if (problem != null) {
-        Get.snackbar('Check the form', problem);
+        MessageToast.showWarning(msg: problem, title: 'Check the form');
         return;
       }
       creating.value = true;
@@ -490,7 +491,10 @@ class RidersScreen extends GetView<RidersController> {
           password: password.text,
         );
       } catch (exception) {
-        Get.snackbar('Could not create rider', _cleanError(exception));
+        MessageToast.showError(
+          msg: _cleanError(exception),
+          title: 'Could not create rider',
+        );
       } finally {
         creating.value = false;
       }
@@ -672,7 +676,10 @@ class RidersScreen extends GetView<RidersController> {
                 style: AppButtonStyle.ghost,
                 onPressed: () async {
                   await Clipboard.setData(ClipboardData(text: login.message));
-                  Get.snackbar('Copied', 'Login details copied.');
+                  MessageToast.showInfo(
+                    msg: 'Login details copied.',
+                    title: 'Copied',
+                  );
                 },
               ),
               AppButton(
@@ -682,9 +689,9 @@ class RidersScreen extends GetView<RidersController> {
                 onPressed: () async {
                   final ok = await _openWhatsApp(login.phone, login.message);
                   if (!ok) {
-                    Get.snackbar(
-                      'WhatsApp could not open',
-                      'Copy the login details and share them manually.',
+                    MessageToast.showError(
+                      msg: 'Copy the login details and share them manually.',
+                      title: 'WhatsApp could not open',
                     );
                   }
                 },
@@ -943,9 +950,9 @@ class RidersScreen extends GetView<RidersController> {
                   onPressed: () async {
                     final amount = double.tryParse(advance.text) ?? 0;
                     if (amount <= 0) {
-                      Get.snackbar(
-                        'Enter an advance',
-                        'The advance amount must be greater than zero.',
+                      MessageToast.showWarning(
+                        msg: 'The advance amount must be greater than zero.',
+                        title: 'Enter an advance',
                       );
                       return;
                     }
@@ -962,14 +969,14 @@ class RidersScreen extends GetView<RidersController> {
                     try {
                       await controller.giveAdvance(rider, amount);
                       advance.clear();
-                      Get.snackbar(
-                        'Advance recorded',
-                        'The rider balance has been updated.',
+                      MessageToast.showSuccess(
+                        msg: 'The rider balance has been updated.',
+                        title: 'Advance recorded',
                       );
                     } catch (exception) {
-                      Get.snackbar(
-                        'Could not add advance',
-                        exception.toString(),
+                      MessageToast.showError(
+                        msg: exception.toString(),
+                        title: 'Could not add advance',
                       );
                     }
                   },
@@ -998,14 +1005,14 @@ class RidersScreen extends GetView<RidersController> {
                         if (confirmed != true) return;
                         try {
                           await controller.sendPasswordReset(rider);
-                          Get.snackbar(
-                            'Email sent',
-                            'Password reset link sent to ${rider.email}.',
+                          MessageToast.showSuccess(
+                            msg: 'Password reset link sent to ${rider.email}.',
+                            title: 'Email sent',
                           );
                         } catch (exception) {
-                          Get.snackbar(
-                            'Could not send email',
-                            _cleanError(exception),
+                          MessageToast.showError(
+                            msg: _cleanError(exception),
+                            title: 'Could not send email',
                           );
                         }
                       },
@@ -1039,7 +1046,10 @@ class RidersScreen extends GetView<RidersController> {
                 await controller.deleteRider(rider);
                 if (context.mounted) Navigator.of(context).pop();
               } catch (exception) {
-                Get.snackbar('Could not remove rider', exception.toString());
+                MessageToast.showError(
+                  msg: exception.toString(),
+                  title: 'Could not remove rider',
+                );
               }
             },
           ),
@@ -1062,12 +1072,15 @@ class RidersScreen extends GetView<RidersController> {
                 try {
                   await controller.paySalary(rider);
                   if (context.mounted) Navigator.of(context).pop();
-                  Get.snackbar(
-                    'Salary paid',
-                    'Payment and Salaries expense recorded.',
+                  MessageToast.showSuccess(
+                    msg: 'Payment and Salaries expense recorded.',
+                    title: 'Salary paid',
                   );
                 } catch (exception) {
-                  Get.snackbar('Could not pay salary', exception.toString());
+                  MessageToast.showError(
+                    msg: exception.toString(),
+                    title: 'Could not pay salary',
+                  );
                 }
               },
             ),
@@ -1075,7 +1088,10 @@ class RidersScreen extends GetView<RidersController> {
             label: 'Save',
             onPressed: () async {
               if (name.text.trim().isEmpty) {
-                Get.snackbar('Name required', 'Enter the rider name.');
+                MessageToast.showWarning(
+                  msg: 'Enter the rider name.',
+                  title: 'Name required',
+                );
                 return;
               }
               final confirmed = await CommonDialog.confirm(
@@ -1107,7 +1123,10 @@ class RidersScreen extends GetView<RidersController> {
                 );
                 if (context.mounted) Navigator.of(context).pop();
               } catch (exception) {
-                Get.snackbar('Could not save rider', exception.toString());
+                MessageToast.showError(
+                  msg: exception.toString(),
+                  title: 'Could not save rider',
+                );
               }
             },
           ),

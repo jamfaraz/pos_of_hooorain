@@ -121,7 +121,9 @@ class SalesController extends GetxController {
         final s = DateTime(d.year, d.month, d.day);
         return (
           s,
-          s.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1)),
+          s
+              .add(const Duration(days: 1))
+              .subtract(const Duration(milliseconds: 1)),
         );
       case SalesRange.custom:
         final r = customRange.value;
@@ -160,8 +162,10 @@ class SalesController extends GetxController {
   }
 
   void loadMore() {
-    visibleCount.value =
-        (visibleCount.value + pageSize).clamp(0, filteredOrders.length);
+    visibleCount.value = (visibleCount.value + pageSize).clamp(
+      0,
+      filteredOrders.length,
+    );
   }
 
   String get rangeLabel {

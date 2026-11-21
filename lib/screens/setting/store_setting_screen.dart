@@ -120,7 +120,12 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
               ),
             ),
             ListenableBuilder(
-              listenable: Listenable.merge([c.name, c.address, c.phone, c.hours]),
+              listenable: Listenable.merge([
+                c.name,
+                c.address,
+                c.phone,
+                c.hours,
+              ]),
               builder: (context, _) {
                 final storeName = c.name.text.trim().isEmpty
                     ? 'Your store'
@@ -183,9 +188,15 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                             runSpacing: 8,
                             children: [
                               if (c.phone.text.trim().isNotEmpty)
-                                _heroChip(PhosphorIconsRegular.phone, c.phone.text.trim()),
+                                _heroChip(
+                                  PhosphorIconsRegular.phone,
+                                  c.phone.text.trim(),
+                                ),
                               if (c.hours.text.trim().isNotEmpty)
-                                _heroChip(PhosphorIconsRegular.clock, c.hours.text.trim()),
+                                _heroChip(
+                                  PhosphorIconsRegular.clock,
+                                  c.hours.text.trim(),
+                                ),
                               Obx(
                                 () => _heroChip(
                                   PhosphorIconsRegular.truck,
@@ -267,7 +278,10 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                   onTap: () => controller.tab.value = i,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 11,
+                    ),
                     decoration: BoxDecoration(
                       color: controller.tab.value == i
                           ? cs.primaryContainer
@@ -345,10 +359,14 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                 hintText: 'e.g. Hoorain',
                 required: true,
                 maxWidth: double.infinity,
-                prefixIcon: const Icon(PhosphorIconsRegular.storefront, size: 19),
+                prefixIcon: const Icon(
+                  PhosphorIconsRegular.storefront,
+                  size: 19,
+                ),
                 textCapitalization: TextCapitalization.words,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Store name is required' : null,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Store name is required'
+                    : null,
               ),
               PrimaryTextField(
                 controller: c.taxNumber,
@@ -356,7 +374,10 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                 hintText: 'NTN 1234567-8',
                 optional: true,
                 maxWidth: double.infinity,
-                prefixIcon: const Icon(PhosphorIconsRegular.identificationCard, size: 19),
+                prefixIcon: const Icon(
+                  PhosphorIconsRegular.identificationCard,
+                  size: 19,
+                ),
                 textCapitalization: TextCapitalization.characters,
               ),
             ),
@@ -386,8 +407,9 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s()]')),
                 ],
-                validator: (v) =>
-                    v == null || v.trim().length < 7 ? 'Enter a valid phone number' : null,
+                validator: (v) => v == null || v.trim().length < 7
+                    ? 'Enter a valid phone number'
+                    : null,
               ),
               PrimaryTextField(
                 controller: c.hours,
@@ -423,7 +445,8 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
       context,
       icon: PhosphorIconsRegular.mapPinArea,
       title: 'Delivery area',
-      subtitle: 'Customers outside this distance from your store cannot place delivery orders.',
+      subtitle:
+          'Customers outside this distance from your store cannot place delivery orders.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -473,9 +496,10 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                     ),
                     min: StoreSetupController.minRadius,
                     max: StoreSetupController.maxRadius,
-                    divisions: (StoreSetupController.maxRadius -
-                            StoreSetupController.minRadius)
-                        .toInt(),
+                    divisions:
+                        (StoreSetupController.maxRadius -
+                                StoreSetupController.minRadius)
+                            .toInt(),
                     label: '${v.toStringAsFixed(0)} km',
                     onChanged: c.setRadiusFromSlider,
                   ),
@@ -597,7 +621,8 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
       context,
       icon: PhosphorIconsRegular.receipt,
       title: 'Charges & minimum order',
-      subtitle: 'What customers pay on top of their items, and the smallest order you accept.',
+      subtitle:
+          'What customers pay on top of their items, and the smallest order you accept.',
       child: Form(
         key: c.chargesForm,
         child: Column(
@@ -608,7 +633,8 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
               label: 'Minimum order (Rs)',
               hint: '0',
               icon: PhosphorIconsRegular.shoppingCart,
-              helper: 'Orders below this amount cannot be placed. Use 0 for no minimum.',
+              helper:
+                  'Orders below this amount cannot be placed. Use 0 for no minimum.',
             ),
             const SizedBox(height: _gap),
             _pair(
@@ -727,7 +753,9 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                       Expanded(
                         child: Text(
                           line.$2,
-                          style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ],
@@ -740,17 +768,25 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                   decoration: BoxDecoration(
                     color: cs.secondary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: cs.secondary.withValues(alpha: 0.35)),
+                    border: Border.all(
+                      color: cs.secondary.withValues(alpha: 0.35),
+                    ),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(PhosphorIconsRegular.warning, size: 17, color: cs.secondary),
+                      Icon(
+                        PhosphorIconsRegular.warning,
+                        size: 17,
+                        color: cs.secondary,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           'Free delivery starts below your minimum order, so every order will already get free delivery.',
-                          style: theme.textTheme.bodySmall?.copyWith(height: 1.4),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ],
@@ -795,7 +831,10 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                 maxWidth: double.infinity,
                 optional: true,
                 fieldType: TextInputType.phone,
-                prefixIcon: const Icon(PhosphorIconsRegular.whatsappLogo, size: 19),
+                prefixIcon: const Icon(
+                  PhosphorIconsRegular.whatsappLogo,
+                  size: 19,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s]')),
                 ],
@@ -810,7 +849,10 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                 maxWidth: double.infinity,
                 optional: true,
                 fieldType: TextInputType.emailAddress,
-                prefixIcon: const Icon(PhosphorIconsRegular.envelopeSimple, size: 19),
+                prefixIcon: const Icon(
+                  PhosphorIconsRegular.envelopeSimple,
+                  size: 19,
+                ),
                 validator: (v) {
                   final t = (v ?? '').trim();
                   if (t.isEmpty) return null;
@@ -849,7 +891,13 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
   Widget _pair(Widget a, Widget b) => LayoutBuilder(
     builder: (context, box) {
       if (box.maxWidth < 560) {
-        return Column(children: [a, const SizedBox(height: _gap), b]);
+        return Column(
+          children: [
+            a,
+            const SizedBox(height: _gap),
+            b,
+          ],
+        );
       }
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -986,7 +1034,10 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
                 label: 'Reset',
                 style: AppButtonStyle.ghost,
                 small: true,
-                icon: const Icon(PhosphorIconsRegular.arrowCounterClockwise, size: 16),
+                icon: const Icon(
+                  PhosphorIconsRegular.arrowCounterClockwise,
+                  size: 16,
+                ),
                 onPressed: isDirty && !isSaving ? onDiscard : null,
               ),
               const SizedBox(width: 10),
@@ -1008,14 +1059,20 @@ class StoreSetupScreen extends GetView<StoreSetupController> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.45,
+        ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(PhosphorIconsRegular.info, size: 17, color: theme.colorScheme.primary),
+          Icon(
+            PhosphorIconsRegular.info,
+            size: 17,
+            color: theme.colorScheme.primary,
+          ),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: theme.textTheme.bodySmall)),
         ],

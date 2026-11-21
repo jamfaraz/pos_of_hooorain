@@ -42,7 +42,8 @@ class _P {
   Color get muted =>
       theme.inputDecorationTheme.labelStyle?.color ?? cs.onSurfaceVariant;
   Color get line => theme.dividerColor;
-  Color get soft => theme.inputDecorationTheme.fillColor ?? cs.surfaceContainerLow;
+  Color get soft =>
+      theme.inputDecorationTheme.fillColor ?? cs.surfaceContainerLow;
   Color get surface => cs.surface;
   Color get primary => cs.primary;
   Color get error => cs.error;
@@ -461,7 +462,14 @@ class _OrderView extends StatelessWidget {
             for (final s in stats)
               SizedBox(
                 width: itemW,
-                child: _statTile(p, s.$1, s.$2, s.$3, hero: s.$4, narrow: narrow),
+                child: _statTile(
+                  p,
+                  s.$1,
+                  s.$2,
+                  s.$3,
+                  hero: s.$4,
+                  narrow: narrow,
+                ),
               ),
           ],
         );
@@ -565,9 +573,7 @@ class _OrderView extends StatelessWidget {
             transform: Matrix4.translationValues(0, h && filled ? -1.5 : 0, 0),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             decoration: BoxDecoration(
-              color: filled
-                  ? bg
-                  : (h ? p.cs.primaryContainer : p.surface),
+              color: filled ? bg : (h ? p.cs.primaryContainer : p.surface),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: filled
@@ -795,10 +801,7 @@ class _OrderView extends StatelessWidget {
         Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: p.surface,
-          ),
+          decoration: BoxDecoration(shape: BoxShape.circle, color: p.surface),
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -913,7 +916,6 @@ class _OrderView extends StatelessWidget {
       ),
     );
   }
-
 
   Widget _itemsCard(BuildContext context) => _ItemsCard(items: order.items);
 
@@ -1229,7 +1231,8 @@ class _OrderView extends StatelessWidget {
               context,
               icon: PhosphorIconsRegular.prohibit,
               title: 'Reject order',
-              subtitle: 'Decline it. Stock is restored and the customer is told.',
+              subtitle:
+                  'Decline it. Stock is restored and the customer is told.',
               color: p.error,
               onTap: () => _rejectOrder(context),
             ),
@@ -1342,7 +1345,9 @@ class _OrderView extends StatelessWidget {
               : color.withValues(alpha: hovering ? 0.1 : 0.05),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: filled ? color : color.withValues(alpha: hovering ? 0.5 : 0.28),
+            color: filled
+                ? color
+                : color.withValues(alpha: hovering ? 0.5 : 0.28),
           ),
           boxShadow: filled
               ? [
@@ -1371,7 +1376,10 @@ class _OrderView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: p.t(13.5, w: FontWeight.w800, c: onColor)),
+                  Text(
+                    title,
+                    style: p.t(13.5, w: FontWeight.w800, c: onColor),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
@@ -1425,7 +1433,8 @@ class _OrderView extends StatelessWidget {
           row('Items total', order.subtotal),
           row('Delivery fee', order.deliveryFee),
           row('Service charges', order.serviceFee),
-          if (order.discount > 0) row('Discount', order.discount, negative: true),
+          if (order.discount > 0)
+            row('Discount', order.discount, negative: true),
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.all(16),
@@ -1529,7 +1538,11 @@ class _OrderView extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(PhosphorIconsRegular.phone, size: 13, color: p.muted),
+                          Icon(
+                            PhosphorIconsRegular.phone,
+                            size: 13,
+                            color: p.muted,
+                          ),
                           const SizedBox(width: 5),
                           Flexible(
                             child: Text(
@@ -1608,7 +1621,11 @@ class _OrderView extends StatelessWidget {
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: p.t(12, w: FontWeight.w700, c: filled ? p.primary : p.ink),
+                style: p.t(
+                  12,
+                  w: FontWeight.w700,
+                  c: filled ? p.primary : p.ink,
+                ),
               ),
             ),
           ],
@@ -1696,8 +1713,9 @@ class _OrderView extends StatelessWidget {
                   onChanged: _isClosed
                       ? null
                       : (value) async {
-                          final riderId =
-                              value == null || value.isEmpty ? null : value;
+                          final riderId = value == null || value.isEmpty
+                              ? null
+                              : value;
                           final rider = controller.riders.firstWhereOrNull(
                             (item) => item.id == riderId,
                           );
@@ -1719,9 +1737,9 @@ class _OrderView extends StatelessWidget {
                           try {
                             await controller.assignRider(riderId);
                           } catch (exception) {
-                            Get.snackbar(
-                              'Could not assign rider',
-                              exception.toString(),
+                            MessageToast.showError(
+                              msg: exception.toString(),
+                              title: 'Could not assign rider',
                             );
                           }
                         },
@@ -2060,7 +2078,10 @@ class _ReasonDialogState extends State<_ReasonDialog> {
               const SizedBox(height: 12),
               Text(kind.message, style: p.t(13, c: p.muted, h: 1.5)),
               const SizedBox(height: 20),
-              Text('Reason', style: p.t(12.5, w: FontWeight.w700, c: p.muted)),
+              Text(
+                'Reason',
+                style: p.t(12.5, w: FontWeight.w700, c: p.muted),
+              ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
@@ -2373,7 +2394,8 @@ class _ItemsCardState extends State<_ItemsCard> {
                   children: [
                     for (var i = 0; i < shown.length; i++) ...[
                       _row(context, shown[i], i + 1, compact),
-                      if (i != shown.length - 1) Divider(height: 1, color: p.line),
+                      if (i != shown.length - 1)
+                        Divider(height: 1, color: p.line),
                     ],
                   ],
                 ),
@@ -2392,10 +2414,7 @@ class _ItemsCardState extends State<_ItemsCard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Items total', style: p.t(13, c: p.muted)),
-                    Text(
-                      _rs(itemsTotal),
-                      style: p.t(15, w: FontWeight.w800),
-                    ),
+                    Text(_rs(itemsTotal), style: p.t(15, w: FontWeight.w800)),
                   ],
                 ),
               ),
@@ -2450,8 +2469,13 @@ class _ItemsCardState extends State<_ItemsCard> {
       onTap: () => Get.to(() => FullImageScreen(imageUrl: item.imageUrl ?? '')),
       builder: (hovering) => AnimatedContainer(
         duration: const Duration(milliseconds: 140),
-        color: hovering ? p.primary.withValues(alpha: 0.04) : Colors.transparent,
-        padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 22, vertical: 13),
+        color: hovering
+            ? p.primary.withValues(alpha: 0.04)
+            : Colors.transparent,
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 16 : 22,
+          vertical: 13,
+        ),
         child: compact
             ? Row(
                 children: [

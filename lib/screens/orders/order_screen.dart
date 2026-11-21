@@ -10,6 +10,7 @@ import '../../controllers/order_controller.dart';
 import '../../widgets/order_card.dart';
 import '../../widgets/order_history_table.dart';
 import '../../widgets/retry_widget.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 enum OrderSort { newest, oldest, amountHigh, amountLow }
 
@@ -690,12 +691,10 @@ class _FilterSheetState extends State<_FilterSheet> {
                 child: ElevatedButton(
                   onPressed: () {
                     if ((_start != null) ^ (_end != null)) {
-                      Get.snackbar(
-                        'Incomplete range',
-                        'Please select both a start and end date, or clear both.',
-                        snackPosition: SnackPosition.BOTTOM,
-                        backgroundColor: theme.colorScheme.error,
-                        colorText: theme.colorScheme.onError,
+                      MessageToast.showWarning(
+                        msg:
+                            'Please select both a start and end date, or clear both.',
+                        title: 'Incomplete range',
                       );
                       return;
                     }

@@ -89,7 +89,8 @@ class ExpenseController extends GetxController {
     reload();
   }
 
-  void previousMonth() => setMonth(DateTime(month.value.year, month.value.month - 1));
+  void previousMonth() =>
+      setMonth(DateTime(month.value.year, month.value.month - 1));
 
   void nextMonth() {
     if (!canGoNext) return;
@@ -140,14 +141,16 @@ class ExpenseController extends GetxController {
     return m.year < now.year || (m.year == now.year && m.month < now.month);
   }
 
-  int get daysInMonth => DateTime(month.value.year, month.value.month + 1, 0).day;
+  int get daysInMonth =>
+      DateTime(month.value.year, month.value.month + 1, 0).day;
 
   /// Days that have passed in the viewed month (whole month if it is over).
   int get daysElapsed => isCurrentMonth ? DateTime.now().day : daysInMonth;
 
   double get monthTotal => monthExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
-  double get prevTotal => prevMonthExpenses.fold(0.0, (sum, e) => sum + e.amount);
+  double get prevTotal =>
+      prevMonthExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
   /// Change vs last month in percent, or null when there is no last month data.
   double? get deltaPercent =>
@@ -164,7 +167,8 @@ class ExpenseController extends GetxController {
   double get dailyAverage => monthTotal / math.max(1, daysElapsed);
 
   /// Expected total at the end of the month at the current pace.
-  double get projected => isCurrentMonth ? dailyAverage * daysInMonth : monthTotal;
+  double get projected =>
+      isCurrentMonth ? dailyAverage * daysInMonth : monthTotal;
 
   List<double> get dailyTotals {
     final totals = List<double>.filled(daysInMonth, 0);
@@ -200,10 +204,8 @@ class ExpenseController extends GetxController {
     ...monthExpenses.map((e) => e.category),
   }.toList();
 
-  List<String> get paymentMethods => {
-    ...kPaymentMethods,
-    ...monthExpenses.map((e) => e.paidBy),
-  }.toList();
+  List<String> get paymentMethods =>
+      {...kPaymentMethods, ...monthExpenses.map((e) => e.paidBy)}.toList();
 
   bool get hasFilters =>
       category.value.isNotEmpty ||

@@ -21,21 +21,22 @@ class TabBarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-        margin: EdgeInsets.symmetric(horizontal: isProfile ? 4 : 0),
-        decoration: BoxDecoration(
-          color: isSelected ? kPrimaryColor : unSelectedColor,
-          borderRadius: BorderRadius.circular(40),
-        ),
-        alignment: Alignment.center,
-        child: Center(
-          child: Text(
-            title,
-            style: GoogleFonts.inter(
-              color: isSelected ? Colors.white : Colors.black,
-              fontSize: isProfile == true ? 12.sp : 12.sp,
-              fontWeight: FontWeight.w500,
-            ),
+      margin: EdgeInsets.symmetric(horizontal: isProfile ? 4 : 0),
+      decoration: BoxDecoration(
+        color: isSelected ? kPrimaryColor : unSelectedColor,
+        borderRadius: BorderRadius.circular(40),
+      ),
+      alignment: Alignment.center,
+      child: Center(
+        child: Text(
+          title,
+          style: GoogleFonts.inter(
+            color: isSelected ? Colors.white : Colors.black,
+            fontSize: isProfile == true ? 12.sp : 12.sp,
+            fontWeight: FontWeight.w500,
           ),
-        ));
+        ),
+      ),
+    );
   }
 }

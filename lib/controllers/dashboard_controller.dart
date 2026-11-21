@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../models/order_record.dart';
 import '../models/product_record.dart';
 import '../services/control_room_service.dart';
+import '../services/inventory_service.dart';
 import '../utils/dashboard_metrics.dart' as dashboard_metrics;
 
 class DashboardController extends GetxController {
@@ -150,6 +151,8 @@ class DashboardController extends GetxController {
     0.0,
     (total, order) => total + dashboard_metrics.knownCostProfit(order),
   );
+
+  double get inventoryStockValue => InventoryService.stockValue(products);
 
   List<ProductRecord> get lowStock =>
       products

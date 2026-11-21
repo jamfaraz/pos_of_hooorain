@@ -56,10 +56,11 @@ class UserDetailController extends GetxController {
           .collection('orders')
           .where('userId', isEqualTo: userId)
           .get();
-      final list = snap.docs
-          .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
-          .toList()
-        ..sort((a, b) => b.orderDate.compareTo(a.orderDate));
+      final list =
+          snap.docs
+              .map((doc) => OrderModel.fromMap(doc.data(), doc.id))
+              .toList()
+            ..sort((a, b) => b.orderDate.compareTo(a.orderDate));
       orders.assignAll(list);
     } catch (_) {
       orders.clear();
@@ -72,7 +73,9 @@ class UserDetailController extends GetxController {
 
   static bool _counts(OrderModel o) {
     final s = o.status.toLowerCase();
-    return !(s.contains('cancel') || s.contains('reject') || s.contains('return'));
+    return !(s.contains('cancel') ||
+        s.contains('reject') ||
+        s.contains('return'));
   }
 
   /// Orders that were not cancelled, rejected or returned.
@@ -112,7 +115,10 @@ class UserDetailController extends GetxController {
       MessageToast.showToast(msg: 'Customer marked as ${labelFor(status)}');
       return true;
     } catch (e) {
-      Get.snackbar('Could not update status', e.toString());
+      MessageToast.showError(
+        msg: e.toString(),
+        title: 'Could not update status',
+      );
       return false;
     } finally {
       updatingStatus.value = null;

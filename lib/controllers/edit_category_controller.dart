@@ -12,12 +12,13 @@ class EditCategoryController extends GetxController {
 
   // Form controllers
   final TextEditingController nameController = TextEditingController();
-  final RxList<TextEditingController> subcategoryControllers = <TextEditingController>[].obs;
-  
+  final RxList<TextEditingController> subcategoryControllers =
+      <TextEditingController>[].obs;
+
   // Image handling
   final Rx<File?> imageFile = Rx<File?>(null);
   final RxString imageUrl = RxString('');
-  
+
   // State
   final RxBool isLoading = RxBool(false);
   final RxDouble uploadProgress = RxDouble(0.0);
@@ -39,7 +40,7 @@ class EditCategoryController extends GetxController {
   }) {
     nameController.text = name;
     this.imageUrl.value = imageUrl ?? '';
-    
+
     // Initialize subcategory controllers
     subcategoryControllers.clear();
     for (var subcategory in subcategories) {
@@ -61,7 +62,10 @@ class EditCategoryController extends GetxController {
         imageUrl.value = ''; // Reset URL when new image is picked
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to pick image: ${e.toString()}');
+      MessageToast.showError(
+        msg: 'Failed to pick image: ${e.toString()}',
+        title: 'Error',
+      );
     }
   }
 
@@ -70,17 +74,21 @@ class EditCategoryController extends GetxController {
     try {
       final fileName = 'category_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final ref = _storage.ref().child('category_images/$fileName');
-      
+
       final uploadTask = ref.putFile(file);
-      
+
       uploadTask.snapshotEvents.listen((taskSnapshot) {
-        uploadProgress.value = taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
+        uploadProgress.value =
+            taskSnapshot.bytesTransferred / taskSnapshot.totalBytes;
       });
 
       final snapshot = await uploadTask;
       return await snapshot.ref.getDownloadURL();
     } catch (e) {
-      Get.snackbar('Error', 'Failed to upload image: ${e.toString()}');
+      MessageToast.showError(
+        msg: 'Failed to upload image: ${e.toString()}',
+        title: 'Error',
+      );
       return null;
     }
   }
@@ -112,7 +120,7 @@ class EditCategoryController extends GetxController {
           .map((controller) => controller.text.trim())
           .where((text) => text.isNotEmpty)
           .toList();
-          
+
       if (subcategories.isEmpty) {
         throw 'Please add at least one subcategory';
       }
@@ -139,11 +147,11 @@ class EditCategoryController extends GetxController {
 
       // Reset form
       resetForm();
-      
+
       Get.back();
       MessageToast.showToast(msg: 'Category updated successfully');
     } catch (e) {
-      Get.snackbar('Error', e.toString());
+      MessageToast.showError(msg: e.toString(), title: 'Error');
     } finally {
       isLoading.value = false;
     }
@@ -155,9 +163,15 @@ class EditCategoryController extends GetxController {
       isLoading.value = true;
       await _firestore.collection('categories').doc(categoryId).delete();
       Get.back();
-      Get.snackbar('Success', 'Category deleted successfully');
+      MessageToast.showSuccess(
+        msg: 'Category deleted successfully',
+        title: 'Success',
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to delete category: ${e.toString()}');
+      MessageToast.showError(
+        msg: 'Failed to delete category: ${e.toString()}',
+        title: 'Error',
+      );
     } finally {
       isLoading.value = false;
     }

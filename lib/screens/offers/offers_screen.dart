@@ -16,8 +16,10 @@ import '../../widgets/multi_image_uploader.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/retry_widget.dart';
 import '../../widgets/side_drawer.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
-String _fmt(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+String _fmt(double v) =>
+    v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 String _date(DateTime d) => '${d.day}/${d.month}/${d.year}';
 String _discountLabel(OfferRecord o) =>
     o.type == 'pct' ? '${_fmt(o.value)}% OFF' : '${Money.rs(o.value)} OFF';
@@ -184,8 +186,11 @@ class OffersScreen extends GetView<OffersController> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(PhosphorIconsFill.sparkle,
-                          color: scheme.onPrimary, size: 18),
+                      Icon(
+                        PhosphorIconsFill.sparkle,
+                        color: scheme.onPrimary,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Customer home preview',
@@ -215,10 +220,18 @@ class OffersScreen extends GetView<OffersController> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _audienceToggle('home', 'Home user',
-                        PhosphorIconsRegular.house, scheme),
-                    _audienceToggle('shop', 'Shop owner',
-                        PhosphorIconsRegular.storefront, scheme),
+                    _audienceToggle(
+                      'home',
+                      'Home user',
+                      PhosphorIconsRegular.house,
+                      scheme,
+                    ),
+                    _audienceToggle(
+                      'shop',
+                      'Shop owner',
+                      PhosphorIconsRegular.storefront,
+                      scheme,
+                    ),
                   ],
                 ),
               ),
@@ -294,9 +307,11 @@ class OffersScreen extends GetView<OffersController> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon,
-                size: 16,
-                color: selected ? scheme.primary : scheme.onPrimary),
+            Icon(
+              icon,
+              size: 16,
+              color: selected ? scheme.primary : scheme.onPrimary,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
@@ -433,8 +448,11 @@ class OffersScreen extends GetView<OffersController> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(PhosphorIconsFill.pushPin,
-                          size: 15, color: scheme.primary),
+                      child: Icon(
+                        PhosphorIconsFill.pushPin,
+                        size: 15,
+                        color: scheme.primary,
+                      ),
                     ),
                   ),
                 Positioned(
@@ -543,19 +561,28 @@ class OffersScreen extends GetView<OffersController> {
               ],
             ),
           ),
-          Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.5)),
+          Divider(
+            height: 1,
+            color: scheme.outlineVariant.withValues(alpha: 0.5),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 8, 8),
             child: Row(
               children: [
-                const Text('Pin', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  'Pin',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 Switch(
                   value: offer.pinned,
                   onChanged: (v) =>
                       _confirmOfferToggle(context, offer, v, pinned: true),
                 ),
                 const SizedBox(width: 4),
-                const Text('Live', style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  'Live',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 Switch(
                   value: offer.live,
                   onChanged: (v) =>
@@ -578,9 +605,9 @@ class OffersScreen extends GetView<OffersController> {
                     try {
                       await controller.delete(offer.id!);
                     } catch (exception) {
-                      Get.snackbar(
-                        'Could not delete offer',
-                        exception.toString(),
+                      MessageToast.showError(
+                        msg: exception.toString(),
+                        title: 'Could not delete offer',
                       );
                     }
                   },
@@ -652,7 +679,10 @@ class OffersScreen extends GetView<OffersController> {
         pinned ? offer.copyWith(pinned: value) : offer.copyWith(live: value),
       );
     } catch (exception) {
-      Get.snackbar('Could not update offer', exception.toString());
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not update offer',
+      );
     }
   }
 
@@ -696,8 +726,7 @@ class OffersScreen extends GetView<OffersController> {
           pinned: pinned.value,
           live: true,
         );
-        double priceOf(ProductRecord p, bool shop, bool withOffer) =>
-            withOffer
+        double priceOf(ProductRecord p, bool shop, bool withOffer) => withOffer
             ? unitPrice(
                 product: p,
                 shopCustomer: shop,
@@ -749,8 +778,9 @@ class OffersScreen extends GetView<OffersController> {
                     controller: search,
                     onChanged: (_) => tick.value++,
                     decoration: InputDecoration(
-                      prefixIcon:
-                          const Icon(PhosphorIconsRegular.magnifyingGlass),
+                      prefixIcon: const Icon(
+                        PhosphorIconsRegular.magnifyingGlass,
+                      ),
                       hintText: 'Search by product name or SKU',
                       filled: true,
                       fillColor: scheme.surfaceContainerLow,
@@ -779,7 +809,9 @@ class OffersScreen extends GetView<OffersController> {
                           InputChip(
                             avatar: ClipOval(
                               child: _Thumb(
-                                url: p.images.isNotEmpty ? p.images.first : null,
+                                url: p.images.isNotEmpty
+                                    ? p.images.first
+                                    : null,
                                 size: 22,
                               ),
                             ),
@@ -842,8 +874,9 @@ class OffersScreen extends GetView<OffersController> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(14),
                                     color: isSel
-                                        ? scheme.primaryContainer
-                                            .withValues(alpha: 0.45)
+                                        ? scheme.primaryContainer.withValues(
+                                            alpha: 0.45,
+                                          )
                                         : scheme.surfaceContainerLow,
                                     border: Border.all(
                                       color: isSel
@@ -940,8 +973,9 @@ class OffersScreen extends GetView<OffersController> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: value,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     onChanged: (_) => tick.value++,
                     decoration: InputDecoration(
                       labelText: type.value == 'pct'
@@ -959,9 +993,10 @@ class OffersScreen extends GetView<OffersController> {
                   Wrap(
                     spacing: 8,
                     children: [
-                      for (final q in type.value == 'pct'
-                          ? [5, 10, 15, 20, 25, 30]
-                          : [50, 100, 200, 500])
+                      for (final q
+                          in type.value == 'pct'
+                              ? [5, 10, 15, 20, 25, 30]
+                              : [50, 100, 200, 500])
                         ActionChip(
                           label: Text(type.value == 'pct' ? '$q%' : 'Rs $q'),
                           onPressed: () {
@@ -1026,11 +1061,13 @@ class OffersScreen extends GetView<OffersController> {
                         onPressed: () async {
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: endsAt.value ??
+                            initialDate:
+                                endsAt.value ??
                                 DateTime.now().add(const Duration(days: 7)),
                             firstDate: DateTime.now(),
-                            lastDate: DateTime.now()
-                                .add(const Duration(days: 365 * 5)),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365 * 5),
+                            ),
                           );
                           if (picked != null) {
                             endsAt.value = picked;
@@ -1041,16 +1078,18 @@ class OffersScreen extends GetView<OffersController> {
                       ActionChip(
                         label: const Text('7 days'),
                         onPressed: () {
-                          endsAt.value =
-                              DateTime.now().add(const Duration(days: 7));
+                          endsAt.value = DateTime.now().add(
+                            const Duration(days: 7),
+                          );
                           tick.value++;
                         },
                       ),
                       ActionChip(
                         label: const Text('30 days'),
                         onPressed: () {
-                          endsAt.value =
-                              DateTime.now().add(const Duration(days: 30));
+                          endsAt.value = DateTime.now().add(
+                            const Duration(days: 30),
+                          );
                           tick.value++;
                         },
                       ),
@@ -1204,8 +1243,11 @@ class OffersScreen extends GetView<OffersController> {
                       const Divider(),
                       Row(
                         children: [
-                          Icon(PhosphorIconsFill.warning,
-                              size: 16, color: scheme.error),
+                          Icon(
+                            PhosphorIconsFill.warning,
+                            size: 16,
+                            color: scheme.error,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Below-cost warning',
@@ -1246,27 +1288,27 @@ class OffersScreen extends GetView<OffersController> {
             onPressed: () async {
               final amount = double.tryParse(value.text.trim()) ?? 0;
               if (selected.isEmpty) {
-                Get.snackbar(
-                  'Select products',
-                  'An offer must include at least one product.',
+                MessageToast.showWarning(
+                  msg: 'An offer must include at least one product.',
+                  title: 'Select products',
                 );
                 return;
               }
               if (type.value == 'pct'
                   ? amount < 1 || amount > 90
                   : amount <= 0) {
-                Get.snackbar(
-                  'Invalid discount',
-                  type.value == 'pct'
+                MessageToast.showError(
+                  msg: type.value == 'pct'
                       ? 'Percent must be from 1 to 90.'
                       : 'Enter a positive Rs amount.',
+                  title: 'Invalid discount',
                 );
                 return;
               }
               if (name.text.trim().isEmpty) {
-                Get.snackbar(
-                  'Offer name required',
-                  'Enter a name for this offer.',
+                MessageToast.showWarning(
+                  msg: 'Enter a name for this offer.',
+                  title: 'Offer name required',
                 );
                 return;
               }
@@ -1287,13 +1329,17 @@ class OffersScreen extends GetView<OffersController> {
                 );
                 if (context.mounted) Navigator.of(context).pop();
                 if (push.value) {
-                  Get.snackbar(
-                    'Offer saved',
-                    'Push delivery is not connected here. Use Marketing notifications after configuring a server sender.',
+                  MessageToast.showSuccess(
+                    msg:
+                        'Push delivery is not connected here. Use Marketing notifications after configuring a server sender.',
+                    title: 'Offer saved',
                   );
                 }
               } catch (exception) {
-                Get.snackbar('Could not save offer', exception.toString());
+                MessageToast.showError(
+                  msg: exception.toString(),
+                  title: 'Could not save offer',
+                );
               }
             },
           ),
@@ -1423,8 +1469,10 @@ class _PreviewCard extends StatelessWidget {
                 left: 8,
                 top: 8,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: scheme.primary,
                     borderRadius: BorderRadius.circular(20),

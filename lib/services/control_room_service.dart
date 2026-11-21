@@ -85,6 +85,17 @@ class ControlRoomService {
       .where(field, isGreaterThanOrEqualTo: Timestamp.fromDate(start))
       .snapshots();
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchCollectionRange(
+    String collection,
+    String field,
+    DateTime start,
+    DateTime end,
+  ) => _firestore
+      .collection(collection)
+      .where(field, isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+      .where(field, isLessThan: Timestamp.fromDate(end))
+      .snapshots();
+
   Stream<QuerySnapshot<Map<String, dynamic>>> watchOrdersByStatus(
     String status,
   ) => _firestore

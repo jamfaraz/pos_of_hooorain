@@ -24,10 +24,12 @@ class AddProductScreen extends StatelessWidget {
   void _playVideo() {
     if (_controller.videoFile.value != null) {
       // For local file (newly selected video)
-      Get.to(() => VideoPlayerScreen(
-        videoUrl: '', // Empty for local file
-        localVideoFile: _controller.videoFile.value,
-      ));
+      Get.to(
+        () => VideoPlayerScreen(
+          videoUrl: '', // Empty for local file
+          localVideoFile: _controller.videoFile.value,
+        ),
+      );
     }
   }
 
@@ -165,10 +167,8 @@ class AddProductScreen extends StatelessWidget {
                 label: 'Subcategory',
                 items: subcategories
                     .map(
-                      (subcat) => DropdownMenuItem(
-                        value: subcat,
-                        child: Text(subcat),
-                      ),
+                      (subcat) =>
+                          DropdownMenuItem(value: subcat, child: Text(subcat)),
                     )
                     .toList(),
                 value: selectedSubcategory.value.isNotEmpty
@@ -223,8 +223,10 @@ class AddProductScreen extends StatelessWidget {
                 title: Text(
                   'Enable Bulk Pricing',
                   style: GoogleFonts.inter(
-                       fontSize: 13.sp,
-                       color: _controller.hasBulkPricing.value ? kPrimaryColor : null,
+                    fontSize: 13.sp,
+                    color: _controller.hasBulkPricing.value
+                        ? kPrimaryColor
+                        : null,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -232,7 +234,7 @@ class AddProductScreen extends StatelessWidget {
                   'Set discounted prices for bulk purchases',
                   style: GoogleFonts.inter(
                     fontSize: 11.sp,
-                    
+
                     color: Colors.grey.shade600,
                   ),
                 ),
@@ -271,8 +273,9 @@ class AddProductScreen extends StatelessWidget {
                   'Featured Product',
                   style: GoogleFonts.inter(
                     color: _controller.isFeatured.value ? kPrimaryColor : null,
-                     fontSize: 13.sp,
-                    fontWeight: FontWeight.w500,),
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 subtitle: Text(
                   'Show this product in featured section',
@@ -472,7 +475,7 @@ class AddProductScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        
+
                         // Play button overlay
                         Positioned.fill(
                           child: Material(
@@ -483,7 +486,7 @@ class AddProductScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        
+
                         // Remove button
                         Positioned(
                           top: 8,

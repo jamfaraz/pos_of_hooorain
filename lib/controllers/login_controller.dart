@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../services/admin_access_service.dart';
 import '../utils/toas_message.dart';
@@ -13,21 +12,17 @@ class LoginController extends GetxController {
     // try {
     //   isLoading.value = true;
     //   await _auth.sendPasswordResetEmail(email: email);
-    //   Get.snackbar(
-    //     'Success',
-    //     'Password reset email sent. Check your inbox.',
-    //     backgroundColor: Colors.green,
-    //     colorText: Colors.white,
+    //   MessageToast.showSuccess(
+    //     msg: 'Password reset email sent. Check your inbox.',
+    //     title: 'Success',
     //   );
     //   Get.toNamed('/login');
     // } on FirebaseAuthException catch (e) {
     //   _handleAuthError(e);
     // } catch (e) {
-    //   Get.snackbar(
-    //     'Error',
-    //     'Something went wrong. Please try again.',
-    //     backgroundColor: Colors.red,
-    //     colorText: Colors.white,
+    //   MessageToast.showError(
+    //     msg: 'Something went wrong. Please try again.',
+    //     title: 'Error',
     //   );
     // } finally {
     //   isLoading.value = false;
@@ -57,12 +52,7 @@ class LoginController extends GetxController {
         errorMessage = 'Too many requests. Try again later.';
         break;
     }
-    Get.snackbar(
-      'Error',
-      errorMessage,
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
-    );
+    MessageToast.showError(msg: errorMessage, title: 'Error');
   }
 
   Future<void> loginAdmin({
@@ -103,7 +93,7 @@ class LoginController extends GetxController {
       } else if (e.code == 'wrong-password') {
         MessageToast.showToast(msg: "Incorrect password!");
       } else {
-        MessageToast.showToast(msg: e.message ?? "Login failed!");
+        _handleAuthError(e);
       }
     } catch (e) {
       MessageToast.showToast(msg: "An unexpected error occurred!");

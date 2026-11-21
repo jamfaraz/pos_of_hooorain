@@ -23,7 +23,7 @@ class DataController extends GetxController {
       FirebaseFirestore.instance
           .collection('Notifications')
           .where('userId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false) // Only fetch unread notifications
+          .where('isRead', isEqualTo: false)
           .snapshots()
           .listen((snapshot) {
             hasNewNotification.value = snapshot.docs.isNotEmpty;
@@ -31,18 +31,16 @@ class DataController extends GetxController {
     }
   }
 
-  // Mark all notifications as read when user opens notification screen
   void markNotificationsAsRead() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       String userId = user.uid;
 
-      var notifications =
-          await FirebaseFirestore.instance
-              .collection('Notifications')
-              .where('userId', isEqualTo: userId)
-              .where('isRead', isEqualTo: false)
-              .get();
+      var notifications = await FirebaseFirestore.instance
+          .collection('Notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get();
 
       for (var doc in notifications.docs) {
         await doc.reference.update({'isRead': true});
@@ -51,7 +49,6 @@ class DataController extends GetxController {
     }
   }
 
-  // Mark messages as read
   Future<void> markMessagesAsRead(String chatRoomId, String userId) async {
     await FirebaseFirestore.instance.collection('chats').doc(chatRoomId).update(
       {'unreadCount_$userId': 0},
@@ -68,7 +65,6 @@ class DataController extends GetxController {
 
   Future<void> createNotification({
     required String message,
-
     required String userId,
     required String orderId,
     required bool isChat,
@@ -86,8 +82,8 @@ class DataController extends GetxController {
               'notificationUid': myId,
               'currentUserId': FirebaseAuth.instance.currentUser!.uid,
               'message': message,
-              'userId': userId, // Store userId
-              'orderId': orderId, // Store userId
+              'userId': userId,
+              'orderId': orderId,
               'time': DateTime.now(),
               'isChat': isChat,
               'isRead': false,
@@ -100,7 +96,6 @@ class DataController extends GetxController {
     }
   }
 
-  //
   Future<void> deleteNotification(String id) async {
     try {
       await FirebaseFirestore.instance
@@ -109,7 +104,6 @@ class DataController extends GetxController {
           .delete()
           .then((value) {});
     } catch (e) {
-      // Get.snackbar('Error', 'Error deleting document: $e');
       print(e);
     }
   }

@@ -90,11 +90,9 @@ class _FeaturedProductsScreenState extends State<FeaturedProductsScreen>
       await fetchProductController.toggleFeaturedStatus(product.id!, false);
       MessageToast.showToast(msg: 'Product removed from featured');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to update product: $e',
-        backgroundColor: const Color(0xFFEF4444),
-        colorText: Colors.white,
+      MessageToast.showError(
+        msg: 'Failed to update product: $e',
+        title: 'Error',
       );
     }
   }
@@ -104,11 +102,9 @@ class _FeaturedProductsScreenState extends State<FeaturedProductsScreen>
       await fetchProductController.deleteProduct(productId);
       MessageToast.showToast(msg: 'Product deleted successfully');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to delete product: $e',
-        backgroundColor: const Color(0xFFEF4444),
-        colorText: Colors.white,
+      MessageToast.showError(
+        msg: 'Failed to delete product: $e',
+        title: 'Error',
       );
     }
   }

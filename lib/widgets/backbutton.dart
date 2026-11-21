@@ -11,11 +11,7 @@ class BackNavigatingButton extends StatelessWidget {
       onTap: () {
         Get.back();
       },
-      child:  Icon(
-      color: color,
-      size: 20,
-        Icons.arrow_back_ios_new_outlined,
-      ),
+      child: Icon(color: color, size: 20, Icons.arrow_back_ios_new_outlined),
     );
   }
 }

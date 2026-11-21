@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 import '../../controllers/inventory_controller.dart';
 import '../../models/product_record.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/primary_textfield.dart';
 import '../../widgets/side_drawer.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class StockInDrawer extends StatefulWidget {
   const StockInDrawer({
@@ -95,7 +95,10 @@ class _StockInDrawerState extends State<StockInDrawer> {
     if (!_formKey.currentState!.validate()) return;
     final product = widget.controller.productById(_productId);
     if (product == null) {
-      Get.snackbar('Product unavailable', 'Refresh inventory and retry.');
+      MessageToast.showSuccess(
+        msg: 'Refresh inventory and retry.',
+        title: 'Product unavailable',
+      );
       return;
     }
     setState(() => _saving = true);
@@ -106,9 +109,15 @@ class _StockInDrawerState extends State<StockInDrawer> {
         note: _note.text.trim(),
       );
       if (mounted) Navigator.of(context).pop();
-      Get.snackbar('Stock added', '${product.name} inventory was updated.');
+      MessageToast.showSuccess(
+        msg: '${product.name} inventory was updated.',
+        title: 'Stock added',
+      );
     } catch (exception) {
-      Get.snackbar('Could not add stock', exception.toString());
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not add stock',
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }

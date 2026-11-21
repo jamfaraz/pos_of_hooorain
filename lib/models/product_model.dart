@@ -180,6 +180,7 @@ class Product {
 
   bool get inStock => stock > 0 && !isOutOfStock;
   int get availableQuantity => inStock ? stock : 0;
+  double get inventoryCost => cost > 0 ? cost : price;
   bool isAvailableForCustomerType(String customerType) =>
       customerType.toLowerCase() == 'shop'
       ? showForShopOwners

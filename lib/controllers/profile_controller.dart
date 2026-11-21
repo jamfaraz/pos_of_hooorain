@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../services/admin_access_service.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class ProfileController extends GetxController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -55,11 +55,9 @@ class ProfileController extends GetxController {
       await Get.find<AdminAccessService>().logout();
       Get.offAllNamed('/login');
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to log out. Please try again.',
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
+      MessageToast.showError(
+        msg: 'Failed to log out. Please try again.',
+        title: 'Error',
       );
     }
   }

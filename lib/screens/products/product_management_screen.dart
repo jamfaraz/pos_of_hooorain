@@ -13,6 +13,7 @@ import '../../widgets/page_header.dart';
 import '../../widgets/retry_widget.dart';
 import '../../widgets/app_loader.dart';
 import 'product_editor_drawer.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 /// Column widths for the product table. The product column takes the rest.
 const double _wMrp = 84;
@@ -886,14 +887,17 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
     if (confirmed != true) return;
     try {
       final deleted = await controller.deleteOrHide(product);
-      Get.snackbar(
-        deleted ? 'Product deleted' : 'Product hidden',
-        deleted
+      MessageToast.showSuccess(
+        msg: deleted
             ? product.name
             : 'Sales history exists, so the product was hidden.',
+        title: deleted ? 'Product deleted' : 'Product hidden',
       );
     } catch (exception) {
-      Get.snackbar('Could not delete product', exception.toString());
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not delete product',
+      );
     }
   }
 
@@ -943,7 +947,10 @@ class ProductManagementScreen extends GetView<ProductManagementController> {
         await controller.toggleVisible(product, value);
       }
     } catch (exception) {
-      Get.snackbar('Could not update product', exception.toString());
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not update product',
+      );
     }
   }
 }

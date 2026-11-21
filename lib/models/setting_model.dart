@@ -206,7 +206,9 @@ String _text(dynamic value) => value == null ? '' : '$value'.trim();
 double _radius(dynamic value) {
   final number = value is num ? value.toDouble() : double.tryParse('$value');
   if (number == null) return StoreSettings.defaultRadius;
-  return number.clamp(StoreSettings.minRadius, StoreSettings.maxRadius).toDouble();
+  return number
+      .clamp(StoreSettings.minRadius, StoreSettings.maxRadius)
+      .toDouble();
 }
 
 DateTime? _date(dynamic value) {

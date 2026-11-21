@@ -10,11 +10,13 @@ import '../../models/product_record.dart';
 import '../../utils/bill_print_service.dart';
 import '../../utils/money.dart';
 import '../../utils/pricing.dart';
+import '../../utils/receipt_pdf.dart';
 import '../../widgets/app_loader.dart';
 import '../../widgets/common_dialog.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/primary_textfield.dart';
 import '../../widgets/retry_widget.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class BillingScreen extends GetView<BillingController> {
   const BillingScreen({super.key});
@@ -1221,21 +1223,34 @@ class _BillPreviewDialogState extends State<_BillPreviewDialog> {
   Future<void> _print() async {
     setState(() => _printing = true);
     try {
-      final opened = await printReceiptHtml(_receiptHtml());
+      final receipt = await buildReceiptPdf(
+        billNumber: controller.ensureDraftBillNumber(),
+        customer: controller.selectedCustomer?.fullName ?? 'Walk-in customer',
+        phone: controller.selectedCustomer?.phoneNumber ?? '',
+        date: DateTime.now(),
+        items: controller.cart.toList(),
+        subtotal: controller.subtotal,
+        discount: controller.discount,
+        delivery: controller.delivery,
+        total: controller.total,
+        paymentMethod: controller.selectedPaymentMethod.value,
+      );
+      final printed = await printReceiptPdf(
+        bytes: receipt.bytes,
+        format: receipt.format,
+      );
       if (!mounted) return;
-      Get.snackbar(
-        opened ? 'Print preview opened' : 'Printing unavailable',
-        opened
-            ? 'Choose your printer in the browser print window.'
-            : 'Browser printing is not available on this platform.',
-        snackPosition: SnackPosition.BOTTOM,
+      MessageToast.showSuccess(
+        msg: printed
+            ? 'Select your paired Bixolon printer and print the bill.'
+            : 'No print job was sent.',
+        title: printed ? 'Print dialog opened' : 'Printing cancelled',
       );
     } catch (exception) {
       if (!mounted) return;
-      Get.snackbar(
-        'Could not open print preview',
-        exception.toString(),
-        snackPosition: SnackPosition.BOTTOM,
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not print bill',
       );
     } finally {
       if (mounted) setState(() => _printing = false);
@@ -1247,97 +1262,18 @@ class _BillPreviewDialogState extends State<_BillPreviewDialog> {
       final id = await controller.checkout();
       if (!mounted || id == null) return;
       Navigator.of(context).pop();
-      Get.snackbar(
-        'Bill saved',
-        'Bill #$id was saved successfully.',
-        snackPosition: SnackPosition.BOTTOM,
+      MessageToast.showSuccess(
+        msg: 'Bill #$id was saved successfully.',
+        title: 'Bill saved',
       );
     } catch (exception) {
       if (!mounted) return;
-      Get.snackbar(
-        'Could not save bill',
-        exception.toString(),
-        snackPosition: SnackPosition.BOTTOM,
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not save bill',
       );
     }
   }
-
-  String _receiptHtml() {
-    final billNumber = controller.ensureDraftBillNumber();
-    final customer =
-        controller.selectedCustomer?.fullName ?? 'Walk-in customer';
-    final phone = controller.selectedCustomer?.phoneNumber ?? '';
-    final date = DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.now());
-    final itemRows = controller.cart.map((line) {
-      final productName = _escapeHtml(line.name);
-      return '<tr><td>$productName</td><td class="qty">${line.qty}</td>'
-          '<td class="amount">${_escapeHtml(Money.rs(line.unitPrice))}</td>'
-          '<td class="amount">${_escapeHtml(Money.rs(line.qty * line.unitPrice))}'
-          '</td></tr>';
-    }).join();
-
-    return '''
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Hoorain bill preview</title>
-  <style>
-    @page { size: 80mm auto; margin: 4mm; }
-    * { box-sizing: border-box; }
-    body { font: 13px Arial, sans-serif; color: #17231e; margin: 0 auto; max-width: 72mm; }
-    h1 { font: bold 19px Georgia, serif; margin: 0; letter-spacing: 1px; }
-    .center { text-align: center; }
-    .muted { color: #64736c; font-size: 11px; }
-    .rule { border-top: 1px dashed #89958f; margin: 10px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; font-size: 10px; padding: 4px 0; border-bottom: 1px solid #89958f; }
-    td { padding: 5px 0; vertical-align: top; }
-    .qty { text-align: center; padding: 0 4px; }
-    .amount { text-align: right; white-space: nowrap; padding-left: 8px; }
-    .total { font-size: 16px; font-weight: bold; }
-    @media screen {
-      body { margin: 24px auto; padding: 18px; border: 1px solid #d5ded9; }
-    }
-  </style>
-</head>
-<body>
-  <header class="center">
-    <h1>HOORAIN</h1>
-    <div class="muted">COUNTER BILL</div>
-  </header>
-  <div class="rule"></div>
-  <div>Bill No: ${_escapeHtml(billNumber)}</div>
-  <div>Date: ${_escapeHtml(date)}</div>
-  <div>Customer: ${_escapeHtml(customer)}</div>
-  ${phone.isEmpty ? '' : '<div>Phone: ${_escapeHtml(phone)}</div>'}
-  <div class="rule"></div>
-  <table>
-    <thead><tr><th>ITEM</th><th class="qty">QTY</th><th class="amount">PRICE</th><th class="amount">TOTAL</th></tr></thead>
-    <tbody>$itemRows</tbody>
-  </table>
-  <div class="rule"></div>
-  <table>
-    <tr><td>Subtotal</td><td class="amount">${_escapeHtml(Money.rs(controller.subtotal))}</td></tr>
-    <tr><td>Service charges</td><td class="amount">Rs 0</td></tr>
-    <tr><td>Discount</td><td class="amount">− ${_escapeHtml(Money.rs(controller.discount))}</td></tr>
-    <tr><td>Delivery</td><td class="amount">${_escapeHtml(Money.rs(controller.delivery))}</td></tr>
-    <tr class="total"><td>Total</td><td class="amount">${_escapeHtml(Money.rs(controller.total))}</td></tr>
-  </table>
-  <div class="rule"></div>
-  <div>Payment: ${_escapeHtml(controller.selectedPaymentMethod.value)}</div>
-  <p class="center muted">Thank you for shopping with us.</p>
-</body>
-</html>
-''';
-  }
-
-  String _escapeHtml(String value) => value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
 
   @override
   Widget build(BuildContext context) {

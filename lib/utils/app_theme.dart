@@ -52,20 +52,21 @@ abstract final class AppTheme {
     final isDark = brightness == Brightness.dark;
     final onPrimary = isDark ? AppColors.darkBackground : Colors.white;
 
-    final scheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      brightness: brightness,
-    ).copyWith(
-      primary: primary,
-      onPrimary: onPrimary,
-      secondary: accent,
-      surface: surface,
-      error: AppColors.bad,
-      onSurface: text,
-      outline: line,
-      outlineVariant: line,
-      surfaceTint: Colors.transparent,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: primary,
+          brightness: brightness,
+        ).copyWith(
+          primary: primary,
+          onPrimary: onPrimary,
+          secondary: accent,
+          surface: surface,
+          error: AppColors.bad,
+          onSurface: text,
+          outline: line,
+          outlineVariant: line,
+          surfaceTint: Colors.transparent,
+        );
 
     final base = GoogleFonts.plusJakartaSansTextTheme(
       ThemeData(brightness: brightness, useMaterial3: true).textTheme,
@@ -271,10 +272,7 @@ abstract final class AppTheme {
         ),
         textStyle: const TextStyle(color: Colors.white, fontSize: 12),
       ),
-      listTileTheme: ListTileThemeData(
-        iconColor: subtext,
-        shape: rounded(10),
-      ),
+      listTileTheme: ListTileThemeData(iconColor: subtext, shape: rounded(10)),
       dataTableTheme: DataTableThemeData(
         headingRowColor: WidgetStatePropertyAll(surfaceAlt),
         headingTextStyle: TextStyle(

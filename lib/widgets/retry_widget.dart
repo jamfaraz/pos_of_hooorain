@@ -30,7 +30,7 @@ class ErrorRetryWidget extends StatelessWidget {
             Icon(icon, size: 48, color: Colors.redAccent),
             SizedBox(height: 16.h),
             Text(
-              mainMessage??'',
+              mainMessage ?? '',
               style: GoogleFonts.interTight(
                 fontSize: 18.sp,
                 fontWeight: FontWeight.w600,

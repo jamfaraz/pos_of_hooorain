@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 /// All methods are static, so you can call them directly without Get.put():
 ///   CommonController.openMapsByCoordinates(lat, lng);
@@ -21,13 +21,7 @@ class CommonController extends GetxController {
   }
 
   static void _showError(String message) {
-    Get.snackbar(
-      'Error',
-      message,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.red,
-      colorText: Colors.white,
-    );
+    MessageToast.showError(msg: message, title: 'Error');
   }
 
   // --------------------------------------------------------------------
@@ -39,7 +33,6 @@ class CommonController extends GetxController {
     if (!ok) _showError('Could not open the link.');
   }
 
-  
   // --------------------------------------------------------------------
   // Maps
   // --------------------------------------------------------------------

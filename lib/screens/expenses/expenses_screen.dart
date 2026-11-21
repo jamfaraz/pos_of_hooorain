@@ -17,6 +17,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/page_header.dart';
 import '../../widgets/retry_widget.dart';
 import '../../widgets/side_drawer.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 // ============================================================================
 // Helpers (all colours come from the app theme)
@@ -38,7 +39,8 @@ Color _catColor(BuildContext c, String category) {
     _muted(c),
   ];
   final index = kExpenseCategories.indexOf(category);
-  return palette[(index < 0 ? category.hashCode.abs() : index) % palette.length];
+  return palette[(index < 0 ? category.hashCode.abs() : index) %
+      palette.length];
 }
 
 String _compact(double v) {
@@ -253,16 +255,24 @@ class ExpensesScreen extends GetView<ExpenseController> {
       decoration: BoxDecoration(
         color: theme.colorScheme.error.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.error.withValues(alpha: 0.35)),
+        border: Border.all(
+          color: theme.colorScheme.error.withValues(alpha: 0.35),
+        ),
       ),
       child: Row(
         children: [
-          Icon(PhosphorIconsFill.warningCircle, size: 18, color: theme.colorScheme.error),
+          Icon(
+            PhosphorIconsFill.warningCircle,
+            size: 18,
+            color: theme.colorScheme.error,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Could not refresh: ${controller.error.value}',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
             ),
           ),
           TextButton(onPressed: controller.reload, child: const Text('Retry')),
@@ -451,7 +461,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
               note,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(color: _muted(context)),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: _muted(context),
+              ),
             ),
           ],
         ),
@@ -740,7 +752,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
               if (over)
                 Container(
                   margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
@@ -810,7 +825,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
               final key = DateFormat('yyyyMMdd').format(e.createdAt);
               if (key != lastKey) {
                 lastKey = key;
-                children.add(_dayHeader(context, e.createdAt, dayTotals[key] ?? 0));
+                children.add(
+                  _dayHeader(context, e.createdAt, dayTotals[key] ?? 0),
+                );
               }
             }
             children.add(
@@ -860,35 +877,46 @@ class ExpensesScreen extends GetView<ExpenseController> {
     final theme = Theme.of(context);
     final c = controller;
 
-    Widget pill(String label, IconData icon, {bool active = false}) => Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: active
-            ? theme.colorScheme.primary.withValues(alpha: 0.08)
-            : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: active ? theme.colorScheme.primary.withValues(alpha: 0.5) : theme.dividerColor,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: active ? theme.colorScheme.primary : _muted(context)),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: active ? theme.colorScheme.primary : null,
+    Widget pill(String label, IconData icon, {bool active = false}) =>
+        Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: active
+                ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: active
+                  ? theme.colorScheme.primary.withValues(alpha: 0.5)
+                  : theme.dividerColor,
             ),
           ),
-          const SizedBox(width: 4),
-          Icon(PhosphorIconsRegular.caretDown, size: 12, color: _muted(context)),
-        ],
-      ),
-    );
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: active ? theme.colorScheme.primary : _muted(context),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: active ? theme.colorScheme.primary : null,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                PhosphorIconsRegular.caretDown,
+                size: 12,
+                color: _muted(context),
+              ),
+            ],
+          ),
+        );
 
     final search = SizedBox(
       height: 40,
@@ -934,7 +962,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
           value: '',
           child: Text(
             'Any payment method',
-            style: TextStyle(fontWeight: c.paidBy.value.isEmpty ? FontWeight.w800 : null),
+            style: TextStyle(
+              fontWeight: c.paidBy.value.isEmpty ? FontWeight.w800 : null,
+            ),
           ),
         ),
         for (final m in c.paymentMethods)
@@ -942,7 +972,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
             value: m,
             child: Text(
               m,
-              style: TextStyle(fontWeight: c.paidBy.value == m ? FontWeight.w800 : null),
+              style: TextStyle(
+                fontWeight: c.paidBy.value == m ? FontWeight.w800 : null,
+              ),
             ),
           ),
       ],
@@ -965,7 +997,12 @@ class ExpensesScreen extends GetView<ExpenseController> {
           ] else
             Row(
               children: [
-                Expanded(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 380), child: search)),
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 380),
+                    child: search,
+                  ),
+                ),
                 const SizedBox(width: 10),
                 method,
                 const SizedBox(width: 8),
@@ -995,7 +1032,12 @@ class ExpensesScreen extends GetView<ExpenseController> {
     );
   }
 
-  Widget _catChip(BuildContext context, String label, String value, Color? color) {
+  Widget _catChip(
+    BuildContext context,
+    String label,
+    String value,
+    Color? color,
+  ) {
     final theme = Theme.of(context);
     final selected = controller.category.value == value;
     final tint = color ?? theme.colorScheme.primary;
@@ -1010,9 +1052,7 @@ class ExpensesScreen extends GetView<ExpenseController> {
           decoration: BoxDecoration(
             color: selected ? tint.withValues(alpha: 0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: selected ? tint : theme.dividerColor,
-            ),
+            border: Border.all(color: selected ? tint : theme.dividerColor),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1021,7 +1061,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
                 Container(
                   width: 7,
                   height: 7,
-                  decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: tint,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const SizedBox(width: 7),
               ],
@@ -1052,10 +1095,19 @@ class ExpensesScreen extends GetView<ExpenseController> {
       color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
       child: Row(
         children: [
-          SizedBox(width: _wDate, child: Text(grouped ? 'TIME' : 'DATE', style: style)),
-          SizedBox(width: _wCat, child: Text('CATEGORY', style: style)),
+          SizedBox(
+            width: _wDate,
+            child: Text(grouped ? 'TIME' : 'DATE', style: style),
+          ),
+          SizedBox(
+            width: _wCat,
+            child: Text('CATEGORY', style: style),
+          ),
           Expanded(child: Text('NOTE', style: style)),
-          SizedBox(width: _wPaid, child: Text('PAID BY', style: style)),
+          SizedBox(
+            width: _wPaid,
+            child: Text('PAID BY', style: style),
+          ),
           SizedBox(
             width: _wAmount,
             child: Text('AMOUNT', textAlign: TextAlign.right, style: style),
@@ -1077,7 +1129,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
         children: [
           Text(
             _dayLabel(day),
-            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(width: 8),
           Text(
@@ -1144,7 +1198,11 @@ class ExpensesScreen extends GetView<ExpenseController> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(PhosphorIconsFill.lockSimple, size: 10, color: _muted(context)),
+            Icon(
+              PhosphorIconsFill.lockSimple,
+              size: 10,
+              color: _muted(context),
+            ),
             const SizedBox(width: 4),
             Text(
               'Auto',
@@ -1164,7 +1222,11 @@ class ExpensesScreen extends GetView<ExpenseController> {
     if (e.isAuto) {
       return Tooltip(
         message: 'Managed from Riders',
-        child: Icon(PhosphorIconsRegular.lockSimple, size: 17, color: _muted(context)),
+        child: Icon(
+          PhosphorIconsRegular.lockSimple,
+          size: 17,
+          color: _muted(context),
+        ),
       );
     }
     return PopupMenuButton<String>(
@@ -1190,7 +1252,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
           color: hovering
               ? theme.colorScheme.primary.withValues(alpha: 0.04)
               : Colors.transparent,
-          border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6))),
+          border: Border(
+            top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
+          ),
         ),
         child: Row(
           children: [
@@ -1200,7 +1264,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
                 grouped
                     ? DateFormat('hh:mm a').format(e.createdAt)
                     : DateFormat('d MMM').format(e.createdAt),
-                style: theme.textTheme.bodySmall?.copyWith(color: _muted(context)),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: _muted(context),
+                ),
               ),
             ),
             SizedBox(
@@ -1221,7 +1287,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
                       style: theme.textTheme.bodyMedium,
                     ),
                   ),
-                  if (e.isAuto) ...[const SizedBox(width: 8), _autoBadge(context)],
+                  if (e.isAuto) ...[
+                    const SizedBox(width: 8),
+                    _autoBadge(context),
+                  ],
                 ],
               ),
             ),
@@ -1242,7 +1311,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
             ),
             SizedBox(
               width: _wAction,
-              child: Align(alignment: Alignment.centerRight, child: _rowMenu(context, e)),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _rowMenu(context, e),
+              ),
             ),
           ],
         ),
@@ -1258,7 +1330,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6))),
+          border: Border(
+            top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
+          ),
         ),
         child: Row(
           children: [
@@ -1287,7 +1361,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
                           ),
                         ),
                       ),
-                      if (e.isAuto) ...[const SizedBox(width: 6), _autoBadge(context)],
+                      if (e.isAuto) ...[
+                        const SizedBox(width: 6),
+                        _autoBadge(context),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -1296,7 +1373,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
                     '${grouped ? DateFormat('hh:mm a').format(e.createdAt) : DateFormat('d MMM').format(e.createdAt)}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(color: _muted(context)),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: _muted(context),
+                    ),
                   ),
                 ],
               ),
@@ -1304,7 +1383,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
             const SizedBox(width: 8),
             Text(
               Money.rs(e.amount),
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
             _rowMenu(context, e),
           ],
@@ -1319,7 +1400,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
         border: Border(top: BorderSide(color: theme.dividerColor)),
       ),
       child: Wrap(
@@ -1341,7 +1424,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
             c.hasFilters
                 ? 'Filtered total ${Money.rs(c.filteredTotal)}'
                 : 'Month total ${Money.rs(c.monthTotal)}',
-            style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -1374,7 +1459,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
     try {
       await controller.delete(expense);
     } catch (exception) {
-      Get.snackbar('Could not delete expense', exception.toString());
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not delete expense',
+      );
     }
   }
 
@@ -1383,27 +1471,37 @@ class ExpensesScreen extends GetView<ExpenseController> {
     final label = DateFormat('MMMM yyyy').format(c.month.value);
     final rows = c.filtered;
     if (rows.isEmpty) {
-      Get.snackbar('Nothing to export', 'There are no expenses for $label.');
+      MessageToast.showSuccess(
+        msg: 'There are no expenses for $label.',
+        title: 'Nothing to export',
+      );
       return;
     }
     try {
-      final path = await ReportExportService().export('Hoorain expenses · $label', {
-        'Expenses': [
-          ['Date', 'Category', 'Note', 'Paid by', 'Amount'],
-          for (final e in rows)
-            [
-              DateFormat('yyyy-MM-dd').format(e.createdAt),
-              e.category,
-              e.note,
-              e.paidBy,
-              Money.rs(e.amount),
-            ],
-          ['', '', '', 'Total', Money.rs(c.filteredTotal)],
-        ],
-      });
-      if (path != null) Get.snackbar('Expenses exported', path);
+      final path = await ReportExportService().export(
+        'Hoorain expenses · $label',
+        {
+          'Expenses': [
+            ['Date', 'Category', 'Note', 'Paid by', 'Amount'],
+            for (final e in rows)
+              [
+                DateFormat('yyyy-MM-dd').format(e.createdAt),
+                e.category,
+                e.note,
+                e.paidBy,
+                Money.rs(e.amount),
+              ],
+            ['', '', '', 'Total', Money.rs(c.filteredTotal)],
+          ],
+        },
+      );
+      if (path != null)
+        MessageToast.showSuccess(msg: path, title: 'Expenses exported');
     } catch (exception) {
-      Get.snackbar('Could not export', exception.toString());
+      MessageToast.showError(
+        msg: exception.toString(),
+        title: 'Could not export',
+      );
     }
   }
 
@@ -1461,9 +1559,14 @@ class ExpensesScreen extends GetView<ExpenseController> {
                 onTap: () => onSelected(option),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13,
+                    vertical: 9,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? tint.withValues(alpha: 0.12) : theme.colorScheme.surface,
+                    color: isSelected
+                        ? tint.withValues(alpha: 0.12)
+                        : theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSelected ? tint : theme.dividerColor,
@@ -1474,7 +1577,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
                     option,
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: isSelected
+                          ? FontWeight.w800
+                          : FontWeight.w600,
                       color: isSelected ? tint : theme.colorScheme.onSurface,
                     ),
                   ),
@@ -1486,7 +1591,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
     );
   }
 
-  Future<void> _openEditor(BuildContext context, [ExpenseRecord? existing]) async {
+  Future<void> _openEditor(
+    BuildContext context, [
+    ExpenseRecord? existing,
+  ]) async {
     final amount = TextEditingController(
       text: existing == null ? '' : _plain(existing.amount),
     );
@@ -1508,18 +1616,27 @@ class ExpensesScreen extends GetView<ExpenseController> {
     Future<void> pickDate() async {
       final picked = await showDatePicker(
         context: context,
-        initialDate: date.value.isAfter(DateTime.now()) ? DateTime.now() : date.value,
+        initialDate: date.value.isAfter(DateTime.now())
+            ? DateTime.now()
+            : date.value,
         firstDate: DateTime(2020),
         lastDate: DateTime.now(),
       );
       if (picked != null) {
         final old = date.value;
-        date.value = DateTime(picked.year, picked.month, picked.day, old.hour, old.minute);
+        date.value = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          old.hour,
+          old.minute,
+        );
       }
     }
 
     Future<void> save() async {
-      final value = double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
+      final value =
+          double.tryParse(amount.text.replaceAll(',', '').trim()) ?? 0;
       if (value <= 0) {
         error.value = 'Enter an amount greater than zero.';
         return;
@@ -1558,13 +1675,20 @@ class ExpensesScreen extends GetView<ExpenseController> {
             TextField(
               controller: amount,
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+              ],
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               decoration: const InputDecoration(
                 prefixText: 'Rs. ',
                 hintText: '0',
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -1575,11 +1699,17 @@ class ExpensesScreen extends GetView<ExpenseController> {
               child: InputDecorator(
                 decoration: const InputDecoration(
                   isDense: true,
-                  suffixIcon: Icon(PhosphorIconsRegular.calendarBlank, size: 18),
+                  suffixIcon: Icon(
+                    PhosphorIconsRegular.calendarBlank,
+                    size: 18,
+                  ),
                 ),
                 child: Text(
                   DateFormat('EEEE, d MMMM yyyy').format(date.value),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
@@ -1615,12 +1745,19 @@ class ExpensesScreen extends GetView<ExpenseController> {
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.error.withValues(alpha: 0.08),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.error.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Theme.of(context).colorScheme.error.withValues(alpha: 0.35),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.error.withValues(alpha: 0.35),
                   ),
                 ),
                 child: Text(
@@ -1644,7 +1781,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
               label: 'Cancel',
               style: AppButtonStyle.ghost,
               small: true,
-              onPressed: saving.value ? null : () => Navigator.of(context).pop(),
+              onPressed: saving.value
+                  ? null
+                  : () => Navigator.of(context).pop(),
             ),
             const SizedBox(width: 10),
             AppButton(
@@ -1676,7 +1815,8 @@ class ExpensesScreen extends GetView<ExpenseController> {
 
     double total() => fields.values.fold(
       0.0,
-      (sum, f) => sum + (double.tryParse(f.text.replaceAll(',', '').trim()) ?? 0),
+      (sum, f) =>
+          sum + (double.tryParse(f.text.replaceAll(',', '').trim()) ?? 0),
     );
 
     Future<void> save() async {
@@ -1688,7 +1828,10 @@ class ExpensesScreen extends GetView<ExpenseController> {
         });
         if (context.mounted) Navigator.of(context).pop();
       } catch (exception) {
-        Get.snackbar('Could not save budgets', exception.toString());
+        MessageToast.showError(
+          msg: exception.toString(),
+          title: 'Could not save budgets',
+        );
       } finally {
         saving.value = false;
       }
@@ -1731,8 +1874,12 @@ class ExpensesScreen extends GetView<ExpenseController> {
                   const SizedBox(height: 7),
                   TextField(
                     controller: fields[c],
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
                     decoration: const InputDecoration(
                       isDense: true,
                       prefixText: 'Rs. ',
@@ -1773,7 +1920,9 @@ class ExpensesScreen extends GetView<ExpenseController> {
               label: 'Cancel',
               style: AppButtonStyle.ghost,
               small: true,
-              onPressed: saving.value ? null : () => Navigator.of(context).pop(),
+              onPressed: saving.value
+                  ? null
+                  : () => Navigator.of(context).pop(),
             ),
             const SizedBox(width: 10),
             AppButton(
@@ -1810,7 +1959,9 @@ class _HoverRowState extends State<_HoverRow> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor: widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer,
+      cursor: widget.onTap != null
+          ? SystemMouseCursors.click
+          : MouseCursor.defer,
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: GestureDetector(

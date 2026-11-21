@@ -145,7 +145,7 @@
 //   Widget _buildGreetingBanner() {
 //     final hour = DateTime.now().hour;
 //     final isNight = hour >= 21 || hour < 5;
-    
+
 //     return Container(
 //       margin: EdgeInsets.only(top: 20.h),
 //       padding: EdgeInsets.all(24.w),
@@ -753,13 +753,13 @@
 //       child: Container(
 //         padding: EdgeInsets.all(18.w),
 //         decoration: BoxDecoration(
-         
+
 //           borderRadius: BorderRadius.circular(18.r),
 //           border: Border.all(
 //             color: kblack.withAlpha(16),
 //             width: 1,
 //           ),
-        
+
 //         ),
 //         child: Row(
 //           children: [

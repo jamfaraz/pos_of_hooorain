@@ -31,25 +31,24 @@ class RoundButton extends StatelessWidget {
           backgroundColor: backgroundColor,
           disabledBackgroundColor: backgroundColor,
         ),
-        child:
-            isLoading
-                ? SizedBox(
-                  width: 24.w,
-                  height: 24.h,
-                  child: CircularProgressIndicator(
-                    color: textColor,
-                    strokeWidth: 2,
-                  ),
-                )
-                : Text(
-                  text,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontSize: 15.sp,
-                    fontWeight: FontWeight.w700,
-                    color: textColor,
-                    fontFamily: GoogleFonts.interTight().fontFamily,
-                  ),
+        child: isLoading
+            ? SizedBox(
+                width: 24.w,
+                height: 24.h,
+                child: CircularProgressIndicator(
+                  color: textColor,
+                  strokeWidth: 2,
                 ),
+              )
+            : Text(
+                text,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontSize: 15.sp,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                  fontFamily: GoogleFonts.interTight().fontFamily,
+                ),
+              ),
       ),
     );
   }
@@ -81,11 +80,7 @@ class ActionButton extends StatelessWidget {
             color: color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(6.r),
           ),
-          child: Icon(
-            icon,
-            size: 18.sp,
-            color: color,
-          ),
+          child: Icon(icon, size: 18.sp, color: color),
         ),
       ),
     );

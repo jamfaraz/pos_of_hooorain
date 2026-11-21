@@ -77,11 +77,21 @@ class StoreSetupController extends GetxController {
     for (final c in [name, taxNumber, address, phone, hours]) {
       c.addListener(_checkProfile);
     }
-    for (final c in [supportPhone, supportWhatsapp, supportEmail, supportHours]) {
+    for (final c in [
+      supportPhone,
+      supportWhatsapp,
+      supportEmail,
+      supportHours,
+    ]) {
       c.addListener(_checkSupport);
     }
     radiusText.addListener(_onRadiusText);
-    for (final c in [deliveryCharges, serviceCharges, freeDelivery, minimumOrder]) {
+    for (final c in [
+      deliveryCharges,
+      serviceCharges,
+      freeDelivery,
+      minimumOrder,
+    ]) {
       c.addListener(_checkCharges);
     }
     load();
@@ -101,7 +111,9 @@ class StoreSetupController extends GetxController {
       final data = StoreSettings.fromMaps(
         store: results[0].data(),
         service: results[1].data(),
-        charges: chargesSnap.docs.isEmpty ? null : chargesSnap.docs.first.data(),
+        charges: chargesSnap.docs.isEmpty
+            ? null
+            : chargesSnap.docs.first.data(),
       );
       settings.value = data;
 
@@ -169,8 +181,10 @@ class StoreSetupController extends GetxController {
     return true;
   }
 
-  void _checkProfile() => profileDirty.value = !_same(_profileNow(), _initialProfile);
-  void _checkSupport() => supportDirty.value = !_same(_supportNow(), _initialSupport);
+  void _checkProfile() =>
+      profileDirty.value = !_same(_profileNow(), _initialProfile);
+  void _checkSupport() =>
+      supportDirty.value = !_same(_supportNow(), _initialSupport);
 
   // ---------------------------------------------------------------- radius
 
@@ -191,7 +205,8 @@ class StoreSetupController extends GetxController {
   void setRadiusFromSlider(double value) =>
       _setRadius(value.roundToDouble(), updateText: true);
 
-  String _fmt(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+  String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
   String? radiusError() {
     final v = double.tryParse(radiusText.text.trim());
@@ -241,7 +256,10 @@ class StoreSetupController extends GetxController {
       _snapshotProfile();
       MessageToast.showToast(msg: 'Store profile saved');
     } catch (e) {
-      Get.snackbar('Could not save store profile', e.toString());
+      MessageToast.showError(
+        msg: e.toString(),
+        title: 'Could not save store profile',
+      );
     } finally {
       savingProfile.value = false;
     }
@@ -250,7 +268,10 @@ class StoreSetupController extends GetxController {
   Future<void> saveDelivery() async {
     final problem = radiusError();
     if (problem != null) {
-      Get.snackbar('Check the delivery radius', problem);
+      MessageToast.showWarning(
+        msg: problem,
+        title: 'Check the delivery radius',
+      );
       return;
     }
     savingDelivery.value = true;
@@ -262,7 +283,10 @@ class StoreSetupController extends GetxController {
       deliveryDirty.value = false;
       MessageToast.showToast(msg: 'Delivery area saved');
     } catch (e) {
-      Get.snackbar('Could not save delivery area', e.toString());
+      MessageToast.showError(
+        msg: e.toString(),
+        title: 'Could not save delivery area',
+      );
     } finally {
       savingDelivery.value = false;
     }
@@ -283,7 +307,10 @@ class StoreSetupController extends GetxController {
       _snapshotSupport();
       MessageToast.showToast(msg: 'Support info saved');
     } catch (e) {
-      Get.snackbar('Could not save support info', e.toString());
+      MessageToast.showError(
+        msg: e.toString(),
+        title: 'Could not save support info',
+      );
     } finally {
       savingSupport.value = false;
     }
@@ -291,7 +318,8 @@ class StoreSetupController extends GetxController {
 
   // ------------------------------------------------------ charges & orders
 
-  String _amt(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+  String _amt(double v) =>
+      v == v.roundToDouble() ? v.toInt().toString() : v.toString();
 
   double _num(TextEditingController c) => double.tryParse(c.text.trim()) ?? 0;
 
@@ -307,7 +335,8 @@ class StoreSetupController extends GetxController {
     chargesDirty.value = false;
   }
 
-  void _checkCharges() => chargesDirty.value = !_same(_chargesNow(), _initialCharges);
+  void _checkCharges() =>
+      chargesDirty.value = !_same(_chargesNow(), _initialCharges);
 
   void discardCharges() {
     deliveryCharges.text = _initialCharges['delivery'] ?? '';
@@ -334,7 +363,10 @@ class StoreSetupController extends GetxController {
       _snapshotCharges();
       MessageToast.showToast(msg: 'Charges and minimum order saved');
     } catch (e) {
-      Get.snackbar('Could not save charges', e.toString());
+      MessageToast.showError(
+        msg: e.toString(),
+        title: 'Could not save charges',
+      );
     } finally {
       savingCharges.value = false;
     }
@@ -343,9 +375,20 @@ class StoreSetupController extends GetxController {
   @override
   void onClose() {
     for (final c in [
-      name, taxNumber, address, phone, hours, radiusText,
-      supportPhone, supportWhatsapp, supportEmail, supportHours,
-      deliveryCharges, serviceCharges, freeDelivery, minimumOrder,
+      name,
+      taxNumber,
+      address,
+      phone,
+      hours,
+      radiusText,
+      supportPhone,
+      supportWhatsapp,
+      supportEmail,
+      supportHours,
+      deliveryCharges,
+      serviceCharges,
+      freeDelivery,
+      minimumOrder,
     ]) {
       c.dispose();
     }

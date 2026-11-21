@@ -3,12 +3,11 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import '../constants.dart';
 import '../models/banner_model.dart';
+import 'package:hoorain_pos/utils/toas_message.dart';
 
 class BannerController extends GetxController {
   static BannerController get instance => Get.find();
@@ -19,10 +18,14 @@ class BannerController extends GetxController {
 
   Future<FilePickerResult?> _pickImageFile() async {
     try {
-      return await (FilePicker as dynamic).platform.pickFiles(type: FileType.image);
+      return await (FilePicker as dynamic).platform.pickFiles(
+        type: FileType.image,
+      );
     } catch (_) {
       try {
-        final filePath = await (FilePicker as dynamic).getFilePath(type: FileType.image);
+        final filePath = await (FilePicker as dynamic).getFilePath(
+          type: FileType.image,
+        );
         if (filePath == null || filePath.isEmpty) return null;
 
         final file = File(filePath);
@@ -61,7 +64,9 @@ class BannerController extends GetxController {
       } else {
         // Mobile/Desktop - Use ImagePicker or FilePicker
         if (Platform.isAndroid || Platform.isIOS) {
-          final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+          final pickedFile = await picker.pickImage(
+            source: ImageSource.gallery,
+          );
           if (pickedFile != null) {
             image = File(pickedFile.path);
           }
@@ -95,32 +100,29 @@ class BannerController extends GetxController {
             'imageUrl': downloadUrl,
             'fileName': fileName,
           });
-          Get.snackbar('Success', 'Banner updated successfully',
-              snackPosition: SnackPosition.BOTTOM,
-              backgroundColor: kGreenColor,
-              colorText: Colors.white);
+          MessageToast.showSuccess(
+            msg: 'Banner updated successfully',
+            title: 'Success',
+          );
         } else {
           await _firestore.collection(category).add({
             'imageUrl': downloadUrl,
             'fileName': fileName,
             'timestamp': FieldValue.serverTimestamp(),
           });
-          Get.snackbar('Success', 'Banner added successfully',
-              snackPosition: SnackPosition.BOTTOM,
-              backgroundColor: kGreenColor,
-              colorText: Colors.white);
+          MessageToast.showSuccess(
+            msg: 'Banner added successfully',
+            title: 'Success',
+          );
         }
       } else {
-        Get.snackbar('Error', 'No image selected',
-            snackPosition: SnackPosition.BOTTOM,
-            backgroundColor: Colors.red,
-            colorText: Colors.white);
+        MessageToast.showError(msg: 'No image selected', title: 'Error');
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to upload banner: ${e.toString()}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
+      MessageToast.showError(
+        msg: 'Failed to upload banner: ${e.toString()}',
+        title: 'Error',
+      );
     }
   }
 
@@ -133,15 +135,15 @@ class BannerController extends GetxController {
     try {
       await _firestore.collection(category).doc(docId).delete();
       await _storage.ref('$category/$fileName').delete();
-      Get.snackbar('Success', 'Banner deleted successfully',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: kGreenColor,
-          colorText: Colors.white);
+      MessageToast.showSuccess(
+        msg: 'Banner deleted successfully',
+        title: 'Success',
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to delete banner: ${e.toString()}',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white);
+      MessageToast.showError(
+        msg: 'Failed to delete banner: ${e.toString()}',
+        title: 'Error',
+      );
     }
   }
 
@@ -151,7 +153,10 @@ class BannerController extends GetxController {
         .collection(category)
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => BannerModel.fromFirestore(doc)).toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => BannerModel.fromFirestore(doc))
+              .toList(),
+        );
   }
 }

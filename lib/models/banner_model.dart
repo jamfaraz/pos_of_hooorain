@@ -25,10 +25,6 @@ class BannerModel {
   }
 
   Map<String, dynamic> toMap() {
-    return {
-      'imageUrl': imageUrl,
-      'fileName': fileName,
-      'timestamp': timestamp,
-    };
+    return {'imageUrl': imageUrl, 'fileName': fileName, 'timestamp': timestamp};
   }
 }

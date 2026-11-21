@@ -4,13 +4,11 @@ import 'package:get/get.dart';
 import '../models/order_model.dart';
 import '../utils/toas_message.dart';
 import 'notifications.dart'; // LocalNotificationService
-import 'data_controller.dart';
 
 class OrderController extends GetxController {
   static const int pageSize = 20;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final DataController _dataController = Get.put(DataController());
 
   final RxList<OrderModel> orders = <OrderModel>[].obs;
   final RxList<OrderModel> allOrders = <OrderModel>[].obs;
@@ -89,12 +87,6 @@ class OrderController extends GetxController {
         data: {'screen': 'order_detail', 'orderId': orderDocId},
       );
     }
-    await _dataController.createNotification(
-      message: body,
-      userId: userId,
-      orderId: orderDocId,
-      isChat: false,
-    );
   }
 
   // --------------------------------------------------------------------
