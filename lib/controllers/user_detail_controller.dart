@@ -74,11 +74,10 @@ class UserDetailController extends GetxController {
   static bool _counts(OrderModel o) {
     final s = o.status.toLowerCase();
     return !(s.contains('cancel') ||
-        s.contains('reject') ||
         s.contains('return'));
   }
 
-  /// Orders that were not cancelled, rejected or returned.
+  /// Orders that were not cancelled or returned.
   List<OrderModel> get countedOrders => orders.where(_counts).toList();
 
   double get totalSpent =>

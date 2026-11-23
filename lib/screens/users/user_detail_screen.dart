@@ -34,7 +34,7 @@ _StatusInfo _statusInfo(ColorScheme cs, String status) => switch (status) {
 
 Color _orderColor(ColorScheme cs, String status) {
   final s = status.toLowerCase();
-  if (s.contains('cancel') || s.contains('reject') || s.contains('return')) {
+  if (s.contains('cancel') || s.contains('return')) {
     return cs.error;
   }
   if (s.contains('deliver') || s.contains('complete')) return cs.primary;
@@ -235,7 +235,7 @@ class _Content extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, box) {
-        final wide = box.maxWidth >= 1000;
+        final wide = box.maxWidth >= 1080;
         final pad = box.maxWidth >= 720 ? 32.0 : 16.0;
 
         final main = <Widget>[
@@ -366,58 +366,81 @@ class _IdentityStrip extends StatelessWidget {
         'Joined ${DateFormat('d MMM yyyy').format(createdAt)}',
     ];
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: _panel(context),
-      child: Wrap(
-        spacing: 20,
-        runSpacing: 18,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        alignment: WrapAlignment.spaceBetween,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _Avatar(url: _text(data['image']), name: name, size: 68),
-                const SizedBox(width: 18),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, box) {
+        final stacked = box.maxWidth < 960;
+        final profile = Row(
+          children: [
+            _Avatar(
+              url: _text(data['image']),
+              name: name,
+              size: stacked ? 56 : 68,
+            ),
+            SizedBox(width: stacked ? 14 : 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            name,
-                            style: theme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 26,
-                            ),
-                          ),
-                          _Pill(label: status.label, color: status.color),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
                       Text(
-                        meta.join('   •   '),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurfaceVariant,
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: stacked ? 20 : 26,
                         ),
                       ),
+                      _Pill(label: status.label, color: status.color),
                     ],
                   ),
-                ),
-              ],
+                  if (meta.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final item in meta) _MetaTag(label: item),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-          _DecisionButtons(c: c, current: current),
-        ],
-      ),
+          ],
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(stacked ? 16 : 22),
+          decoration: _panel(context),
+          child: stacked
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    profile,
+                    const SizedBox(height: 18),
+                    Divider(height: 1, color: theme.dividerColor),
+                    const SizedBox(height: 16),
+                    _DecisionButtons(c: c, current: current),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: profile),
+                    const SizedBox(width: 24),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 540),
+                      child: _DecisionButtons(c: c, current: current),
+                    ),
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -436,69 +459,123 @@ class _DecisionButtons extends StatelessWidget {
       final busy = c.updatingStatus.value;
       final locked = busy != null;
 
-      return Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: [
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: cs.error,
-              side: BorderSide(color: cs.error.withValues(alpha: 0.45)),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      final reject = OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: cs.error,
+          side: BorderSide(color: cs.error.withValues(alpha: 0.45)),
+          minimumSize: const Size(0, 46),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: locked || current == UserDetailController.rejected
+            ? null
+            : () => _changeStatus(
+                context,
+                c,
+                current,
+                UserDetailController.rejected,
               ),
-            ),
-            onPressed: locked || current == UserDetailController.rejected
-                ? null
-                : () => _changeStatus(
-                    context,
-                    c,
-                    current,
-                    UserDetailController.rejected,
-                  ),
-            child: Text(
-              busy == UserDetailController.rejected ? 'Saving…' : 'Reject',
-            ),
-          ),
-          AppButton(
-            label: busy == UserDetailController.notVerified
-                ? 'Saving…'
-                : 'Keep pending',
-            style: AppButtonStyle.ghost,
-            onPressed: locked || current == UserDetailController.notVerified
-                ? null
-                : () => _changeStatus(
-                    context,
-                    c,
-                    current,
-                    UserDetailController.notVerified,
-                  ),
-          ),
-          AppButton(
-            label: busy == UserDetailController.verified
-                ? 'Saving…'
-                : current == UserDetailController.verified
-                ? 'Verified'
-                : 'Approve and enable cash on delivery',
-            icon: Icon(
-              current == UserDetailController.verified
-                  ? PhosphorIconsFill.sealCheck
-                  : PhosphorIconsRegular.shieldCheck,
-              size: 18,
-            ),
-            onPressed: locked || current == UserDetailController.verified
-                ? null
-                : () => _changeStatus(
-                    context,
-                    c,
-                    current,
-                    UserDetailController.verified,
-                  ),
-          ),
-        ],
+        child: Text(
+          busy == UserDetailController.rejected ? 'Saving…' : 'Reject',
+        ),
+      );
+      final pending = AppButton(
+        label: busy == UserDetailController.notVerified
+            ? 'Saving…'
+            : 'Keep pending',
+        style: AppButtonStyle.ghost,
+        onPressed: locked || current == UserDetailController.notVerified
+            ? null
+            : () => _changeStatus(
+                context,
+                c,
+                current,
+                UserDetailController.notVerified,
+              ),
+      );
+      final approve = AppButton(
+        label: busy == UserDetailController.verified
+            ? 'Saving…'
+            : current == UserDetailController.verified
+            ? 'Verified'
+            : 'Approve & enable cash on delivery',
+        icon: Icon(
+          current == UserDetailController.verified
+              ? PhosphorIconsFill.sealCheck
+              : PhosphorIconsRegular.shieldCheck,
+          size: 18,
+        ),
+        onPressed: locked || current == UserDetailController.verified
+            ? null
+            : () => _changeStatus(
+                context,
+                c,
+                current,
+                UserDetailController.verified,
+              ),
+      );
+
+      return LayoutBuilder(
+        builder: (context, box) {
+          if (box.maxWidth < 520) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(width: double.infinity, child: approve),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: reject),
+                    const SizedBox(width: 10),
+                    Expanded(child: pending),
+                  ],
+                ),
+              ],
+            );
+          }
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.end,
+            children: [reject, pending, approve],
+          );
+        },
       );
     });
+  }
+}
+
+class _MetaTag extends StatelessWidget {
+  const _MetaTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 300),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.55,
+          ),
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -1272,6 +1349,14 @@ class _OrdersTable extends StatelessWidget {
             else
               LayoutBuilder(
                 builder: (context, box) {
+                  if (box.maxWidth < 720) {
+                    return Column(
+                      children: [
+                        for (final order in recent)
+                          _CompactOrderCard(order: order),
+                      ],
+                    );
+                  }
                   final width = math.max(box.maxWidth, 760.0);
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -1321,6 +1406,108 @@ class _OrdersTable extends StatelessWidget {
       ],
     ],
   );
+}
+
+class _CompactOrderCard extends StatelessWidget {
+  const _CompactOrderCard({required this.order});
+
+  final OrderModel order;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final payment = _or(order.paymentMethod.trim(), 'Payment not specified');
+
+    Widget detail(IconData icon, String label, {int maxWidth = 250}) =>
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth.toDouble()),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 15, color: cs.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '#${order.number}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _Pill(label: order.status, color: _orderColor(cs, order.status)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 14,
+            runSpacing: 8,
+            children: [
+              detail(
+                PhosphorIconsRegular.calendarBlank,
+                DateFormat('d MMM yyyy, h:mm a').format(order.orderDate),
+                maxWidth: 250,
+              ),
+              detail(
+                PhosphorIconsRegular.package,
+                '${order.items.length} ${order.items.length == 1 ? 'item' : 'items'}',
+                maxWidth: 120,
+              ),
+              detail(PhosphorIconsRegular.creditCard, payment, maxWidth: 230),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: theme.dividerColor),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text(
+                'Order total',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                Money.rs(order.total),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _OrderRow extends StatelessWidget {

@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import '../bindings/setup_binding.dart';
 import '../screens/auth/login_screen.dart';
-import '../screens/common/control_room_placeholder.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/item_profit/item_profit_screen.dart';
 import '../screens/inventory/inventory_screen.dart';
@@ -18,6 +17,7 @@ import '../screens/riders/riders_screen.dart';
 import '../screens/orders/order_detail_screen.dart';
 import '../screens/expenses/expenses_screen.dart';
 import '../screens/customers/customers_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
 import '../screens/setting/store_setting_screen.dart';
 import 'admin_route_guard.dart';
 import 'auth_gate.dart';
@@ -109,7 +109,7 @@ abstract final class AppRoutes {
       binding: InventoryBinding(),
     ),
     _protected('/reports', const ReportsScreen(), binding: ReportsBinding()),
-    _placeholder('/notifications', 'Notifications'),
+    _protected('/notifications', const NotificationsScreen()),
   ];
 
   static GetPage<dynamic> _protected(
@@ -128,21 +128,6 @@ abstract final class AppRoutes {
           topBarLeading: topBarLeading,
           topBarAction: topBarAction,
           child: screen,
-        ),
-      ),
-    );
-  }
-
-  static GetPage<dynamic> _placeholder(String path, String title) {
-    return GetPage(
-      name: path,
-      transition: Transition.noTransition,
-      page: () => AdminRouteGuard(
-        child: AppShell(
-          child: ControlRoomPlaceholder(
-            title: title,
-            description: 'This section will be added in its planned phase.',
-          ),
         ),
       ),
     );

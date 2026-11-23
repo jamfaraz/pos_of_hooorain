@@ -84,7 +84,7 @@ class OrderHistoryTableRow extends StatelessWidget {
         'accepted' || 'packed' => AppColors.info,
         'out for delivery' => const Color(0xFF0B7A5E),
         'pending' => AppColors.warning,
-        'cancelled' || 'rejected' => Theme.of(context).colorScheme.error,
+        'cancelled' => Theme.of(context).colorScheme.error,
         _ => Theme.of(context).colorScheme.onSurfaceVariant,
       };
 

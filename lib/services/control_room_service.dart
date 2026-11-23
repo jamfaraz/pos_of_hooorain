@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../models/category_record.dart';
 import '../models/offer_record.dart';
@@ -584,6 +585,23 @@ class ControlRoomService {
 
   Future<void> updateOrder(String id, Map<String, dynamic> changes) =>
       _firestore.collection('orders').doc(id).update(changes);
+
+  Future<Map<String, dynamic>> changeOrderStatus({
+    required String orderId,
+    required String status,
+    String reason = '',
+  }) async {
+    final callable = FirebaseFunctions.instanceFor(
+      region: 'us-central1',
+    ).httpsCallable('changeOrderStatus');
+    final result = await callable.call<Map<String, dynamic>>({
+      'orderId': orderId,
+      'status': status,
+      'reason': reason,
+      'collection': 'orders',
+    });
+    return Map<String, dynamic>.from(result.data);
+  }
 
   Future<void> assignOrderRider(String orderId, String? riderId) => _firestore
       .collection('orders')

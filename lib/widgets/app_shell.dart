@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -5,8 +7,25 @@ import 'package:iconsax/iconsax.dart';
 
 import '../controllers/theme_controller.dart';
 import '../services/admin_access_service.dart';
+import '../services/notification_service.dart';
 import 'common_dialog.dart';
 import 'package:hoorain_pos/utils/toas_message.dart';
+
+/// Emerald sidebar palette (the sidebar keeps its own deep-green look in
+/// both light and dark themes).
+class _Emerald {
+  static const top = Color(0xFF0F3D33);
+  static const mid = Color(0xFF0B2F28);
+  static const bottom = Color(0xFF09261F);
+  static const ink = Color(0xFF073028);
+  static const mint = Color(0xFF7DF0B6);
+  static const mintSoft = Color(0xFFB6FFD9);
+  static const label = Color(0xFF8DB8A8);
+  static const text = Color(0xFFC2DDD2);
+  static const textMuted = Color(0xFF9FC7B8);
+  static const white = Color(0xFFF2FFF8);
+  static const danger = Color(0xFFFFB4B4);
+}
 
 class AppShell extends StatefulWidget {
   const AppShell({
@@ -28,6 +47,8 @@ class _AppShellState extends State<AppShell> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _navigationController = ScrollController(keepScrollOffset: false);
   final Map<String, GlobalKey> _navigationKeys = {};
+  final NotificationService _notificationService = NotificationService();
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _unreadNotifications;
 
   /// Set the moment a menu item is tapped so the highlight never lags.
   String? _tapped;
@@ -65,6 +86,10 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId != null) {
+      _unreadNotifications = _notificationService.watchUnread(userId);
+    }
     // GetX updates currentRoute just after the page is built; refresh once
     // so the highlight is right without needing a scroll or tap.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -137,48 +162,42 @@ class _AppShellState extends State<AppShell> {
         final width = constraints.maxWidth;
         final isDesktop = width >= 1100;
         final showDrawer = width < 900;
-        final railWidth = isDesktop ? 248.0 : 80.0;
+        final railWidth = isDesktop ? 260.0 : 84.0;
 
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: theme.scaffoldBackgroundColor,
           drawer: showDrawer
               ? Drawer(
-                  width: 288,
-                  backgroundColor: theme.colorScheme.surface,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.horizontal(
-                      right: Radius.circular(26),
+                  width: 300,
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 10, 10, 10),
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: _sidebarDecoration(),
+                      child: SafeArea(
+                        child: _navigationRail(expanded: true, inDrawer: true),
+                      ),
                     ),
-                  ),
-                  child: SafeArea(
-                    child: _navigationRail(expanded: true, inDrawer: true),
                   ),
                 )
               : null,
           body: SafeArea(
             bottom: false,
             child: Padding(
-              padding: EdgeInsets.all(showDrawer ? 0 : 16),
+              padding: EdgeInsets.all(showDrawer ? 0 : 10),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (!showDrawer) ...[
-                    Container(
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
                       width: railWidth,
                       clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(26),
-                        border: Border.all(color: theme.dividerColor),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
+                      decoration: _sidebarDecoration(),
                       child: _navigationRail(
                         expanded: isDesktop,
                         inDrawer: false,
@@ -233,6 +252,30 @@ class _AppShellState extends State<AppShell> {
   }
 
   // --------------------------------------------------------------------
+  // Sidebar surface: deep emerald gradient with a deep shadow
+  // --------------------------------------------------------------------
+
+  BoxDecoration _sidebarDecoration() {
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      gradient: const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [_Emerald.top, _Emerald.mid, _Emerald.bottom],
+        stops: [0, 0.55, 1],
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.25),
+          blurRadius: 28,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    );
+  }
+
+  // --------------------------------------------------------------------
   // Top bar: slim (48px), no card, shows where you are
   // --------------------------------------------------------------------
 
@@ -275,15 +318,17 @@ class _AppShellState extends State<AppShell> {
     required Widget child,
     double size = 40,
     Color? color,
+    Color? background,
+    Color? borderColor,
   }) {
     final theme = Theme.of(context);
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: theme.colorScheme.surface,
+        color: background ?? theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.dividerColor),
+          side: BorderSide(color: borderColor ?? theme.dividerColor),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -319,74 +364,124 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _bellButton(BuildContext context, {double size = 40}) => _squareButton(
-    context,
-    size: size,
-    tooltip: 'Notifications',
-    onTap: () => Get.toNamed('/notifications'),
-    child: const Icon(Iconsax.notification),
-  );
-
-  Widget _logoutButton(BuildContext context, {double size = 40}) =>
-      _squareButton(
+  Widget _bellButton(BuildContext context, {double size = 40}) {
+    final unreadStream = _unreadNotifications;
+    if (unreadStream == null) {
+      return _squareButton(
         context,
         size: size,
-        tooltip: 'Log out',
-        color: Theme.of(context).colorScheme.error,
-        onTap: () => _confirmLogout(context),
-        child: const Icon(Iconsax.logout),
+        tooltip: 'Notifications',
+        onTap: () => Get.toNamed('/notifications'),
+        child: const Icon(Iconsax.notification),
       );
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: unreadStream,
+      builder: (context, snapshot) {
+        final unreadCount = snapshot.data?.docs.length ?? 0;
+        final hasUnread = unreadCount > 0;
+        final surface = Theme.of(context).colorScheme.surface;
+        final error = snapshot.hasError ? ' · unable to load unread count' : '';
+        return _squareButton(
+          context,
+          size: size,
+          tooltip: hasUnread
+              ? 'Notifications · $unreadCount unread$error'
+              : 'Notifications$error',
+          onTap: () => Get.toNamed('/notifications'),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const Icon(Iconsax.notification),
+              if (hasUnread)
+                Positioned(
+                  top: 1,
+                  right: 1,
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.error,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: surface, width: 1.5),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Logout button styled for the dark emerald sidebar.
+  Widget _logoutButton(BuildContext context, {double size = 40}) {
+    return Tooltip(
+      message: 'Log out',
+      child: Material(
+        color: _Emerald.danger.withValues(alpha: 0.09),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: _Emerald.danger.withValues(alpha: 0.22)),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _confirmLogout(context),
+          child: SizedBox(
+            width: size,
+            height: size,
+            child: const Center(
+              child: Icon(Iconsax.logout, size: 18, color: _Emerald.danger),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   // --------------------------------------------------------------------
   // Sidebar
   // --------------------------------------------------------------------
 
-  Widget _brand(ThemeData theme, {required bool expanded}) {
-    final cs = theme.colorScheme;
+  Widget _brand({required bool expanded}) {
     final tile = Container(
-      width: 42,
-      height: 42,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [cs.primary, Color.lerp(cs.primary, Colors.black, 0.3)!],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: cs.primary.withValues(alpha: 0.35),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: _Emerald.mint,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(Iconsax.shop, color: cs.onPrimary, size: 22),
+      clipBehavior: Clip.antiAlias,
+      child: Image.asset('assets/landing/appLogo.png', fit: BoxFit.cover),
     );
     if (!expanded) return tile;
     return Row(
       children: [
         tile,
-        const SizedBox(width: 12),
+        const SizedBox(width: 13),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'HOORAIN',
+                maxLines: 1,
                 style: GoogleFonts.fraunces(
-                  fontSize: 19,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  height: 1.1,
+                  height: 1.05,
+                  letterSpacing: 0.8,
+                  color: _Emerald.white,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 5),
               Text(
                 'CONTROL ROOM',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 9,
-                  letterSpacing: 1.7,
-                  color: cs.primary,
+                  letterSpacing: 2.4,
+                  color: _Emerald.mint,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -397,29 +492,68 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _accountFooter(ThemeData theme, {required bool expanded}) {
-    final cs = theme.colorScheme;
-    if (!expanded) return _logoutButton(context, size: 44);
-    final soft = theme.inputDecorationTheme.fillColor ?? cs.surfaceContainerLow;
+  Widget _fadeDivider() {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.transparent,
+            Colors.white.withValues(alpha: 0.2),
+            Colors.transparent,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _accountFooter({required bool expanded}) {
+    if (!expanded) return _logoutButton(context, size: 46);
+
+    final avatar = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_Emerald.mintSoft, Color(0xFF4FD99A)],
+            ),
+          ),
+          child: const Icon(Iconsax.user, size: 18, color: _Emerald.ink),
+        ),
+        Positioned(
+          right: -1,
+          bottom: -1,
+          child: Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: _Emerald.mint,
+              shape: BoxShape.circle,
+              border: Border.all(color: _Emerald.mid, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 8, 10),
       decoration: BoxDecoration(
-        color: soft,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.05),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Row(
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: cs.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Iconsax.user, size: 18, color: cs.onPrimaryContainer),
-          ),
-          const SizedBox(width: 10),
+          avatar,
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,15 +561,19 @@ class _AppShellState extends State<AppShell> {
                 Text(
                   'Admin',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w800,
+                    height: 1.2,
+                    color: _Emerald.white,
                   ),
                 ),
+                const SizedBox(height: 1),
                 Text(
-                  'Admin workspace',
+                  'Full access',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 11,
-                    color: cs.onSurfaceVariant,
+                    color: _Emerald.textMuted,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -447,101 +585,84 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  Widget _navigationRail({required bool expanded, required bool inDrawer}) {
-    final theme = Theme.of(context);
-    return Container(
-      color: theme.colorScheme.surface,
-      padding: EdgeInsets.fromLTRB(
-        expanded ? 14 : 18,
-        22,
-        expanded ? 14 : 18,
-        16,
+  Widget _groupLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 14, 8, 4),
+      child: Text(
+        label.toUpperCase(),
+        style: GoogleFonts.plusJakartaSans(
+          fontSize: 10,
+          letterSpacing: 1.8,
+          fontWeight: FontWeight.w800,
+          color: _Emerald.label,
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: expanded
-            ? CrossAxisAlignment.stretch
-            : CrossAxisAlignment.center,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(expanded ? 6 : 0, 0, 6, 18),
-            child: _brand(theme, expanded: expanded),
+    );
+  }
+
+  Widget _navigationRail({required bool expanded, required bool inDrawer}) {
+    return Stack(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            expanded ? 12 : 16,
+            22,
+            expanded ? 12 : 16,
+            14,
           ),
-          if (expanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 8, 6),
-              child: Text(
-                'OVERVIEW',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10,
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurfaceVariant.withValues(
-                    alpha: 0.7,
+          child: Column(
+            crossAxisAlignment: expanded
+                ? CrossAxisAlignment.stretch
+                : CrossAxisAlignment.center,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(expanded ? 6 : 0, 0, 6, 14),
+                child: _brand(expanded: expanded),
+              ),
+              _fadeDivider(),
+              Expanded(
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(
+                    context,
+                  ).copyWith(scrollbars: false),
+                  child: SingleChildScrollView(
+                    controller: _navigationController,
+                    child: Column(
+                      crossAxisAlignment: expanded
+                          ? CrossAxisAlignment.stretch
+                          : CrossAxisAlignment.center,
+                      children: [
+                        for (final group in _groups) ...[
+                          if (expanded)
+                            _groupLabel(group.label)
+                          else
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6,
+                                horizontal: 8,
+                              ),
+                              child: _fadeDivider(),
+                            ),
+                          for (final item in group.items)
+                            _navItem(
+                              item,
+                              expanded: expanded,
+                              selected: _isActive(item),
+                              inDrawer: inDrawer,
+                            ),
+                        ],
+                        const SizedBox(height: 12),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Divider(height: 1, color: theme.dividerColor),
-            ),
-          _navItem(
-            _groups.first.items.first,
-            expanded: expanded,
-            selected: _isActive(_groups.first.items.first),
-            inDrawer: inDrawer,
+              const SizedBox(height: 10),
+              _accountFooter(expanded: expanded),
+            ],
           ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(
-                context,
-              ).copyWith(scrollbars: false),
-              child: SingleChildScrollView(
-                controller: _navigationController,
-                child: Column(
-                  crossAxisAlignment: expanded
-                      ? CrossAxisAlignment.stretch
-                      : CrossAxisAlignment.center,
-                  children: [
-                    for (final group in _groups.skip(1)) ...[
-                      if (expanded)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 16, 8, 6),
-                          child: Text(
-                            group.label.toUpperCase(),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              letterSpacing: 1.4,
-                              fontWeight: FontWeight.w800,
-                              color: theme.colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.7),
-                            ),
-                          ),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Divider(height: 1, color: theme.dividerColor),
-                        ),
-                      for (final item in group.items)
-                        _navItem(
-                          item,
-                          expanded: expanded,
-                          selected: _isActive(item),
-                          inDrawer: inDrawer,
-                        ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _accountFooter(theme, expanded: expanded),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -551,85 +672,114 @@ class _AppShellState extends State<AppShell> {
     required bool selected,
     required bool inDrawer,
   }) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    // Icon sits in a small tile: filled with the brand colour when selected.
-    final iconTile = AnimatedContainer(
-      duration: const Duration(milliseconds: 160),
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: selected ? cs.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: selected
-            ? [
-                BoxShadow(
-                  color: cs.primary.withValues(alpha: 0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ]
-            : null,
+    return Padding(
+      key: _navigationKeys.putIfAbsent(item.path, GlobalKey.new),
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: _NavTile(
+        item: item,
+        expanded: expanded,
+        selected: selected,
+        onTap: () {
+          setState(() => _tapped = item.path);
+          if (inDrawer) _scaffoldKey.currentState?.closeDrawer();
+          if (Get.currentRoute != item.path) Get.offNamed(item.path);
+        },
       ),
+    );
+  }
+}
+
+/// A single emerald sidebar entry: soft white hover, and a bright mint-white
+/// pill with a dark green icon tile when selected.
+class _NavTile extends StatefulWidget {
+  const _NavTile({
+    required this.item,
+    required this.expanded,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _NavItem item;
+  final bool expanded;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_NavTile> createState() => _NavTileState();
+}
+
+class _NavTileState extends State<_NavTile> {
+  bool _hover = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = widget.selected;
+    final expanded = widget.expanded;
+
+    final icon = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: 28,
+      height: 28,
       child: Icon(
-        item.icon,
-        size: 19,
-        color: selected ? cs.onPrimary : cs.onSurfaceVariant,
+        widget.item.icon,
+        size: 18,
+        color: selected
+            ? _Emerald.mint
+            : (_hover ? Colors.white : _Emerald.text),
       ),
     );
 
-    return Padding(
-      key: _navigationKeys.putIfAbsent(item.path, GlobalKey.new),
-      padding: const EdgeInsets.symmetric(vertical: 2),
+    final body = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      height: 40,
+      padding: EdgeInsets.symmetric(horizontal: expanded ? 10 : 0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: selected
+            ? Colors.white.withValues(alpha: 0.10)
+            : (_hover ? Colors.white.withValues(alpha: 0.05) : null),
+        border: Border.all(
+          color: selected
+              ? _Emerald.mint.withValues(alpha: 0.28)
+              : Colors.transparent,
+        ),
+      ),
+      child: expanded
+          ? Row(
+              children: [
+                icon,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      letterSpacing: -0.1,
+                      color: selected
+                          ? Colors.white
+                          : (_hover ? Colors.white : _Emerald.text),
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : Center(child: icon),
+    );
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      cursor: SystemMouseCursors.click,
       child: Tooltip(
-        message: expanded ? '' : item.label,
-        child: InkWell(
-          onTap: () {
-            setState(() => _tapped = item.path);
-            if (inDrawer) _scaffoldKey.currentState?.closeDrawer();
-            if (Get.currentRoute != item.path) Get.offNamed(item.path);
-          },
-          borderRadius: BorderRadius.circular(14),
-          hoverColor: cs.primary.withValues(alpha: 0.06),
-          splashColor: cs.primary.withValues(alpha: 0.08),
-          highlightColor: Colors.transparent,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            height: 46,
-            padding: EdgeInsets.symmetric(horizontal: expanded ? 8 : 0),
-            decoration: BoxDecoration(
-              color: selected && expanded
-                  ? cs.primaryContainer
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: expanded
-                ? Row(
-                    children: [
-                      iconTile,
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13.5,
-                            letterSpacing: -0.1,
-                            color: selected
-                                ? cs.onPrimaryContainer
-                                : cs.onSurface.withValues(alpha: 0.78),
-                            fontWeight: selected
-                                ? FontWeight.w800
-                                : FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : Center(child: iconTile),
-          ),
+        message: expanded ? '' : widget.item.label,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: body,
         ),
       ),
     );

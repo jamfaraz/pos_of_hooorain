@@ -1,12 +1,11 @@
 {
-    "name": "hoorain_pos",
-    "short_name": "hoorain_pos",
+    "name": "Hoorain Control Room",
+    "short_name": "Hoorain Admin",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#087A57",
+    "theme_color": "#087A57",
+    "description": "Hoorain Control Room for store administrators.",
     "prefer_related_applications": false,
     "icons": [
         {

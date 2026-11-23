@@ -24,7 +24,7 @@ class OrderCard extends StatelessWidget {
   Color _statusColor(BuildContext context) =>
       switch (order.status.toLowerCase()) {
         'pending' => AppColors.warning,
-        'cancelled' || 'rejected' => Theme.of(context).colorScheme.error,
+        'cancelled' => Theme.of(context).colorScheme.error,
         'delivered' => AppColors.ok,
         'accepted' || 'confirmed' || 'packed' => AppColors.info,
         _ => Theme.of(context).colorScheme.primary,

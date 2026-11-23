@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "hoorain_pos" "\0"
+            VALUE "CompanyName", "Hoorain" "\0"
+            VALUE "FileDescription", "Hoorain Admin" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "hoorain_pos" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "InternalName", "Hoorain Admin" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Hoorain. All rights reserved." "\0"
             VALUE "OriginalFilename", "hoorain_pos.exe" "\0"
-            VALUE "ProductName", "hoorain_pos" "\0"
+            VALUE "ProductName", "Hoorain Admin" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

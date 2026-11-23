@@ -870,7 +870,6 @@ Color _statusColor(BuildContext context, String status) {
     case 'pending':
       return AppColors.warning;
     case 'cancelled':
-    case 'rejected':
       return Theme.of(context).colorScheme.error;
     default:
       return Theme.of(context).colorScheme.onSurfaceVariant;

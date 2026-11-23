@@ -1437,7 +1437,7 @@ class _ChannelCard extends StatelessWidget {
       'delivered' => AppColors.ok,
       'accepted' || 'packed' => AppColors.info,
       'pending' => AppColors.warning,
-      'cancelled' || 'rejected' => cs.error,
+      'cancelled' => cs.error,
       _ => cs.onSurfaceVariant,
     };
 

@@ -68,10 +68,13 @@ dependencies:
   printing: ^5.14.3
   pdf: ^3.12.0
   toastification: ^3.0.3
+  cloud_functions: ^7.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  flutter_launcher_icons: ^0.14.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -95,6 +98,27 @@ flutter:
   assets:
     - assets/landing/
     # - images/a_dot_ham.jpeg
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/landing/appLogo.png
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  adaptive_icon_background: "#087A57"
+  adaptive_icon_foreground: assets/landing/appLogo.png
+  web:
+    generate: true
+    image_path: assets/landing/appLogo.png
+    background_color: "#087A57"
+    theme_color: "#087A57"
+  windows:
+    generate: true
+    image_path: assets/landing/appLogo.png
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: assets/landing/appLogo.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

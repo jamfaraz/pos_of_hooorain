@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:get/get.dart';
 
 import '../models/order_model.dart';
@@ -9,6 +10,9 @@ class OrderController extends GetxController {
   static const int pageSize = 20;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final HttpsCallable _changeOrderStatus = FirebaseFunctions.instanceFor(
+    region: 'us-central1',
+  ).httpsCallable('changeOrderStatus');
 
   final RxList<OrderModel> orders = <OrderModel>[].obs;
   final RxList<OrderModel> allOrders = <OrderModel>[].obs;
@@ -23,11 +27,7 @@ class OrderController extends GetxController {
   final Map<String, Future<String?>> _customerImageCache = {};
 
   /// Statuses after which an order is closed and cannot be changed again.
-  static const Set<String> closedStatuses = {
-    'Cancelled',
-    'Rejected',
-    'Returned',
-  };
+  static const Set<String> closedStatuses = {'Cancelled', 'Returned'};
 
   // --------------------------------------------------------------------
   // Helpers
@@ -40,8 +40,7 @@ class OrderController extends GetxController {
         return userDoc.data()!['fcmToken'] as String?;
       }
       return null;
-    } catch (e) {
-      print('Error fetching device token for user $userId: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -188,7 +187,7 @@ class OrderController extends GetxController {
   }
 
   // --------------------------------------------------------------------
-  // Closing an order (Cancelled / Rejected / Returned)
+  // Closing an order (Cancelled / Returned)
   // --------------------------------------------------------------------
 
   /// Shared logic: checks the current status, optionally puts the products
@@ -205,6 +204,16 @@ class OrderController extends GetxController {
   }) async {
     try {
       isLoading(true);
+      if (status == 'Cancelled') {
+        await _changeOrderStatus.call({
+          'orderId': id,
+          'status': 'Cancelled',
+          'reason': reason,
+          'collection': 'orders',
+        });
+        MessageToast.showSuccess(msg: successMessage);
+        return true;
+      }
       final orderDoc = await _firestore.collection('orders').doc(id).get();
       if (!orderDoc.exists) throw Exception('Order not found');
       final data = orderDoc.data();
@@ -244,7 +253,6 @@ class OrderController extends GetxController {
       MessageToast.showToast(msg: successMessage);
       return true;
     } catch (e) {
-      print('Error closing order as $status: $e');
       MessageToast.showToast(msg: 'Failed to update order: ${e.toString()}');
       return false;
     } finally {
@@ -263,19 +271,6 @@ class OrderController extends GetxController {
     body: (id) => 'Your order #$id has been cancelled.',
     successMessage: 'Order cancelled. Quantities restored.',
   );
-
-  /// Admin declines a pending order. Stock is restored.
-  Future<bool> rejectOrder(String orderId, {required String reason}) =>
-      _closeOrder(
-        id: orderId,
-        status: 'Rejected',
-        allowedFrom: const {'Pending'},
-        reason: reason,
-        restock: true,
-        title: 'Order Rejected 😔',
-        body: (id) => 'Your order #$id could not be fulfilled at this time.',
-        successMessage: 'Order rejected. Quantities restored.',
-      );
 
   /// A delivered order comes back. Stock is only restored when [restock].
   Future<bool> returnOrder(
@@ -335,42 +330,12 @@ class OrderController extends GetxController {
     required String status,
   }) async {
     try {
-      final orderDoc = await _firestore.collection('orders').doc(id).get();
-      if (!orderDoc.exists) throw Exception('Order not found.');
-      final orderData = orderDoc.data() as Map<String, dynamic>;
-      final String userId = orderData['userId'] as String;
-
-      await _firestore.collection('orders').doc(id).update({
+      await _changeOrderStatus.call({
+        'orderId': id,
         'status': status,
-        'statusUpdatedAt': FieldValue.serverTimestamp(),
+        'reason': '',
+        'collection': 'orders',
       });
-
-      String title;
-      String body;
-      switch (status) {
-        case 'Accepted':
-          title = 'Order Accepted! 🎉';
-          body =
-              'Your order #$orderId has been accepted and is being prepared.';
-          break;
-        case 'Delivered':
-          title = 'Order Delivered! 🚚';
-          body = 'Your order #$orderId has been successfully delivered.';
-          break;
-        default:
-          title = 'Order Update';
-          body = 'Your order #$orderId status updated to $status.';
-      }
-
-      await _notifyCustomer(
-        userId: userId,
-        orderDocId: id,
-        title: title,
-        body: body,
-      );
-
-      // The detail screen listens to the order live, so it stays open and
-      // shows the new status by itself.
       MessageToast.showToast(
         msg: 'Order status updated to $status successfully.',
       );

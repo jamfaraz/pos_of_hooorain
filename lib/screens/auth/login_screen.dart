@@ -1574,73 +1574,20 @@ class _AppPriceCard extends StatelessWidget {
   }
 }
 
-/// The Hoorain basket logo, drawn in code.
 class _Logo extends StatelessWidget {
   const _Logo({required this.size});
   final double size;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: size,
-    height: size,
-    child: CustomPaint(painter: _LogoPainter()),
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(size * 0.28),
+    child: Image.asset(
+      'assets/landing/appLogo.png',
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+    ),
   );
-}
-
-class _LogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / 64);
-
-    final bg = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF16A57F), Color(0xFF0B6650)],
-      ).createShader(const Rect.fromLTWH(0, 0, 64, 64));
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(0, 0, 64, 64),
-        const Radius.circular(18),
-      ),
-      bg,
-    );
-
-    final basket = Path()
-      ..moveTo(15, 29)
-      ..lineTo(49, 29)
-      ..lineTo(45.4, 46.2)
-      ..quadraticBezierTo(44.8, 49.4, 41.5, 49.4)
-      ..lineTo(22.5, 49.4)
-      ..quadraticBezierTo(19.2, 49.4, 18.6, 46.2)
-      ..close();
-    canvas.drawPath(basket, Paint()..color = Colors.white);
-
-    final handle = Path()
-      ..moveTo(22, 29)
-      ..cubicTo(22, 18, 42, 18, 42, 29);
-    canvas.drawPath(
-      handle,
-      Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.6
-        ..strokeCap = StrokeCap.round,
-    );
-
-    final leaf = Path()
-      ..moveTo(33, 19)
-      ..cubicTo(32.5, 12.5, 37.5, 9, 44, 9.5)
-      ..cubicTo(44.5, 16, 40, 20, 33, 19)
-      ..close();
-    canvas.drawPath(leaf, Paint()..color = const Color(0xFFF4B740));
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Primary green button with hover lift, press feedback and a loading state.

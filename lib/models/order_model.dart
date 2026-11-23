@@ -62,7 +62,7 @@ class OrderModel {
   final String channel;
   final double discount;
 
-  /// Why the order was rejected, cancelled or returned.
+  /// Why the order was cancelled or returned.
   final String? statusReason;
 
   String get number => orderId ?? id;
@@ -96,7 +96,7 @@ class OrderModel {
           : const GeoPoint(0, 0),
       orderDate:
           _date(data['orderDate'] ?? data['createdAt']) ?? DateTime.now(),
-      status: (data['status'] ?? 'Pending').toString(),
+      status: _normalizeOrderStatus(data['status']),
       paymentMethod: (data['paymentMethod'] ?? '').toString(),
       paymentStatus: (data['paymentStatus'] ?? 'unpaid').toString(),
       notes: data['notes'] as String?,
@@ -253,6 +253,12 @@ double _number(dynamic value, {double fallback = 0}) =>
 
 int _integer(dynamic value, {int fallback = 0}) =>
     value is num ? value.toInt() : fallback;
+
+String _normalizeOrderStatus(dynamic value) {
+  final status = (value ?? 'Pending').toString().trim();
+  if (status.toLowerCase() == 'rejected') return 'Cancelled';
+  return status.isEmpty ? 'Pending' : status;
+}
 
 DateTime? _date(dynamic value) {
   if (value is DateTime) return value;

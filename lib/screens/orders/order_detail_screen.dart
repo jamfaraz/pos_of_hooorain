@@ -23,14 +23,14 @@ import '../../widgets/retry_widget.dart';
 import '../users/user_detail_screen.dart';
 import 'bill_viewer_screen.dart';
 
-/// Normal lifecycle shown in the progress timeline.
+/// Normal lifecycle shown in the progress stepper.
 const List<String> _kStatusFlow = ['Pending', 'Accepted', 'Delivered'];
 
 /// Statuses after which nothing more can be done to an order.
-const Set<String> _kClosed = {'cancelled', 'rejected', 'returned'};
+const Set<String> _kClosed = {'cancelled', 'returned'};
 
 // ============================================================================
-// Theme-driven palette (no hard-coded brand colours)
+// Theme-driven palette
 // ============================================================================
 
 class _P {
@@ -39,16 +39,14 @@ class _P {
   final ThemeData theme;
   ColorScheme get cs => theme.colorScheme;
   Color get ink => cs.onSurface;
-  Color get muted =>
-      theme.inputDecorationTheme.labelStyle?.color ?? cs.onSurfaceVariant;
+  Color get muted => cs.onSurfaceVariant;
   Color get line => theme.dividerColor;
-  Color get soft =>
-      theme.inputDecorationTheme.fillColor ?? cs.surfaceContainerLow;
+  Color get soft => cs.surfaceContainerHighest;
   Color get surface => cs.surface;
   Color get primary => cs.primary;
+  Color get onPrimary => cs.onPrimary;
+  Color get secondary => cs.secondary;
   Color get error => cs.error;
-  Color get hero1 => Color.lerp(cs.primary, Colors.black, 0.6)!;
-  Color get hero2 => Color.lerp(cs.primary, Colors.black, 0.84)!;
 
   TextStyle t(
     double size, {
@@ -68,21 +66,19 @@ class _P {
 String _rs(double v) => 'Rs. ${v.toStringAsFixed(1)}';
 
 Color _statusColor(BuildContext context, String status) {
-  final cs = Theme.of(context).colorScheme;
   switch (status.toLowerCase()) {
     case 'pending':
       return AppColors.warning;
     case 'accepted':
-      return AppColors.info;
+      return Theme.of(context).colorScheme.primary;
     case 'delivered':
       return AppColors.ok;
     case 'returned':
-      return cs.secondary;
+      return Theme.of(context).colorScheme.secondary;
     case 'cancelled':
-    case 'rejected':
-      return cs.error;
+      return Theme.of(context).colorScheme.error;
     default:
-      return cs.primary;
+      return Theme.of(context).colorScheme.primary;
   }
 }
 
@@ -96,8 +92,6 @@ IconData _statusIcon(String status) {
       return PhosphorIconsRegular.checkCircle;
     case 'returned':
       return PhosphorIconsRegular.arrowCounterClockwise;
-    case 'rejected':
-      return PhosphorIconsRegular.prohibit;
     case 'cancelled':
       return PhosphorIconsRegular.xCircle;
     default:
@@ -108,15 +102,13 @@ IconData _statusIcon(String status) {
 String _statusMessage(String status) {
   switch (status.toLowerCase()) {
     case 'pending':
-      return 'Waiting for your review. Accept it or reject it.';
+      return 'Waiting for your review. Accept or cancel this order.';
     case 'accepted':
       return 'Accepted and being prepared for delivery.';
     case 'delivered':
       return 'Delivered to the customer.';
     case 'returned':
       return 'The customer returned this order.';
-    case 'rejected':
-      return 'You declined this order. The customer was notified.';
     case 'cancelled':
       return 'This order was cancelled.';
     default:
@@ -142,6 +134,19 @@ String _formatDateTime(DateTime date) {
   return '${date.day} ${months[date.month - 1]}, ${date.year} at '
       '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
 }
+
+BoxDecoration _cardDeco(_P p) => BoxDecoration(
+  color: p.surface,
+  borderRadius: BorderRadius.circular(16),
+  border: Border.all(color: p.line),
+  boxShadow: [
+    BoxShadow(
+      color: p.theme.colorScheme.shadow.withValues(alpha: 0.045),
+      blurRadius: 18,
+      offset: const Offset(0, 6),
+    ),
+  ],
+);
 
 // ============================================================================
 // Screen: listens to the order live so status changes appear instantly
@@ -217,31 +222,29 @@ class _OrderView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final w = box.maxWidth;
-        final wide = w >= 1180;
+        final wide = w >= 1020;
         final narrow = w < 560;
-        const gap = SizedBox(height: 18);
+        const gap = SizedBox(height: 16);
 
         final main = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _timeline(context),
+            _timeline(context, w),
             if (_hasReason) ...[gap, _reasonCard(context)],
             gap,
-            _itemsCard(context),
+            _ItemsCard(items: order.items),
             gap,
             _deliveryCard(context),
             if ((order.notes ?? '').trim().isNotEmpty) ...[
               gap,
               _noteCard(context),
             ],
-            if (order.billImageUrl?.isNotEmpty == true) ...[
-              gap,
-              _billCard(context),
-            ],
+            gap,
+            _billCard(context),
           ],
         );
 
-        final Widget side = wide
+        final Widget side = wide || w < 760
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -254,8 +257,7 @@ class _OrderView extends StatelessWidget {
                   _riderCard(context),
                 ],
               )
-            : w >= 760
-            ? Row(
+            : Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
@@ -267,7 +269,7 @@ class _OrderView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 18),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       children: [
@@ -278,42 +280,38 @@ class _OrderView extends StatelessWidget {
                     ),
                   ),
                 ],
-              )
-            : Column(
-                children: [
-                  _actionsCard(context),
-                  gap,
-                  _summaryCard(context),
-                  gap,
-                  _customerCard(context),
-                  gap,
-                  _riderCard(context),
-                ],
               );
 
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(narrow ? 0 : 4, 4, narrow ? 0 : 4, 32),
+          padding: EdgeInsets.fromLTRB(
+            narrow ? 12 : 28,
+            narrow ? 14 : 24,
+            narrow ? 12 : 28,
+            40,
+          ),
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1440),
+              constraints: const BoxConstraints(maxWidth: 1480),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _header(context, w),
+                  const SizedBox(height: 20),
+                  _kpiStrip(context, w),
                   const SizedBox(height: 20),
                   if (wide)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(child: main),
-                        const SizedBox(width: 22),
-                        SizedBox(width: 390, child: side),
+                        const SizedBox(width: 24),
+                        SizedBox(width: w >= 1280 ? 360 : 320, child: side),
                       ],
                     )
                   else ...[
                     main,
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     side,
                   ],
                 ],
@@ -326,7 +324,7 @@ class _OrderView extends StatelessWidget {
   }
 
   // --------------------------------------------------------------------
-  // Header (light card, matches the sidebar / control-room look)
+  // Header: breadcrumb, title, status, actions
   // --------------------------------------------------------------------
 
   Widget _header(BuildContext context, double w) {
@@ -336,46 +334,50 @@ class _OrderView extends StatelessWidget {
     final displayId = '#${order.orderId ?? order.id}';
     final forward = _forwardAction(context);
 
-    final backBtn = _Hover(
+    final crumbs = Row(
+      children: [
+        Text(
+          'Orders',
+          style: p.t(12.5, c: p.muted, w: FontWeight.w600),
+        ),
+        const SizedBox(width: 6),
+        Icon(PhosphorIconsRegular.caretRight, size: 11, color: p.muted),
+        const SizedBox(width: 6),
+        Text('Order details', style: p.t(12.5, w: FontWeight.w700)),
+      ],
+    );
+
+    final back = _Hover(
       onTap: () => Get.back(),
       builder: (h) => AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        width: 44,
-        height: 44,
+        duration: const Duration(milliseconds: 140),
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: h ? p.cs.primaryContainer : p.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: h ? Colors.transparent : p.line),
+          color: h ? p.soft : p.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: p.line),
         ),
-        child: Icon(
-          PhosphorIconsRegular.arrowLeft,
-          size: 20,
-          color: h ? p.cs.onPrimaryContainer : p.ink,
-        ),
+        child: Icon(PhosphorIconsRegular.arrowLeft, size: 18, color: p.ink),
       ),
     );
 
-    final titleBlock = Column(
+    final title = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'ORDERS  ›  ORDER DETAILS',
-          style: p.t(10.5, w: FontWeight.w700, c: p.muted, ls: 1.3),
-        ),
-        const SizedBox(height: 8),
         Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 12,
-          runSpacing: 8,
+          runSpacing: 6,
           children: [
             Text(
               'Order $displayId',
-              style: p.t(narrow ? 21 : 28, w: FontWeight.w800, ls: -0.5),
+              style: p.t(narrow ? 20 : 26, w: FontWeight.w800, ls: -0.5),
             ),
             _statusPill(p, order.status, statusColor),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           children: [
             Icon(PhosphorIconsRegular.calendarBlank, size: 14, color: p.muted),
@@ -395,13 +397,11 @@ class _OrderView extends StatelessWidget {
       spacing: 10,
       runSpacing: 10,
       children: [
-        _ghostButton(
+        _btn(
           icon: PhosphorIconsRegular.copy,
           label: 'Copy ID',
           onTap: () {
-            Clipboard.setData(
-              ClipboardData(text: '${order.orderId ?? order.id}'),
-            );
+            Clipboard.setData(ClipboardData(text: order.orderId ?? order.id));
             MessageToast.showToast(msg: 'Order ID copied');
           },
         ),
@@ -409,203 +409,83 @@ class _OrderView extends StatelessWidget {
       ],
     );
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(narrow ? 16 : 24),
-      decoration: _cardDeco(p),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              backBtn,
-              SizedBox(width: narrow ? 12 : 18),
-              Expanded(child: titleBlock),
-              if (w >= 900) ...[const SizedBox(width: 20), actions],
-            ],
-          ),
-          if (w < 900) ...[const SizedBox(height: 16), actions],
-          SizedBox(height: narrow ? 16 : 22),
-          _heroStats(p, narrow),
-        ],
-      ),
-    );
-  }
-
-  Widget _heroStats(_P p, bool narrow) {
-    final stats = [
-      (PhosphorIconsRegular.wallet, 'Grand total', _rs(order.total), true),
-      (PhosphorIconsRegular.package, 'Items', '${order.items.length}', false),
-      (
-        PhosphorIconsRegular.creditCard,
-        'Payment',
-        order.paymentMethod.isEmpty ? '—' : order.paymentMethod,
-        false,
-      ),
-      (
-        PhosphorIconsRegular.user,
-        'Customer',
-        order.userName.isEmpty ? '—' : order.userName,
-        false,
-      ),
-    ];
-    return LayoutBuilder(
-      builder: (context, box) {
-        final cols = box.maxWidth >= 760 ? 4 : 2;
-        const gap = 12.0;
-        final itemW = (box.maxWidth - gap * (cols - 1)) / cols;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        crumbs,
+        const SizedBox(height: 14),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final s in stats)
-              SizedBox(
-                width: itemW,
-                child: _statTile(
-                  p,
-                  s.$1,
-                  s.$2,
-                  s.$3,
-                  hero: s.$4,
-                  narrow: narrow,
-                ),
-              ),
+            back,
+            SizedBox(width: narrow ? 12 : 16),
+            Expanded(child: title),
+            if (w >= 1100) ...[const SizedBox(width: 20), actions],
           ],
-        );
-      },
-    );
-  }
-
-  Widget _statTile(
-    _P p,
-    IconData icon,
-    String label,
-    String value, {
-    required bool hero,
-    required bool narrow,
-  }) {
-    final bg = hero ? p.cs.primaryContainer : p.soft;
-    final fg = hero ? p.cs.onPrimaryContainer : p.ink;
-    final sub = hero ? p.cs.onPrimaryContainer.withValues(alpha: 0.7) : p.muted;
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: narrow ? 12 : 14, vertical: 13),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: hero ? Colors.transparent : p.line),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: hero ? Colors.white.withValues(alpha: 0.55) : p.surface,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, size: 17, color: hero ? fg : p.primary),
-          ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label.toUpperCase(),
-                  style: p.t(9.5, w: FontWeight.w800, c: sub, ls: 1.1),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: p.t(hero ? 16 : 13.5, w: FontWeight.w800, c: fg),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        if (w < 1100) ...[const SizedBox(height: 14), actions],
+      ],
     );
   }
 
   Widget _statusPill(_P p, String status, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 7,
-            height: 7,
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 7),
           Text(
             status.toUpperCase(),
-            style: p.t(11, w: FontWeight.w800, c: color, ls: 1),
+            style: p.t(10.5, w: FontWeight.w800, c: color, ls: 0.9),
           ),
         ],
       ),
     );
   }
 
-  Widget _ghostButton({
+  /// Standard button used in the header.
+  Widget _btn({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     bool filled = false,
-    Color? fill,
   }) {
     return Builder(
       builder: (context) {
         final p = _P(context);
-        final bg = filled ? (fill ?? p.primary) : p.surface;
-        final fg = filled ? p.cs.onPrimary : p.ink;
+        final fg = filled ? p.onPrimary : p.ink;
         return _Hover(
           onTap: onTap,
           builder: (h) => AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            transform: Matrix4.translationValues(0, h && filled ? -1.5 : 0, 0),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            duration: const Duration(milliseconds: 140),
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: filled ? bg : (h ? p.cs.primaryContainer : p.surface),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: filled
-                    ? Colors.transparent
-                    : (h ? Colors.transparent : p.line),
-              ),
-              boxShadow: filled
-                  ? [
-                      BoxShadow(
-                        color: bg.withValues(alpha: h ? 0.4 : 0.25),
-                        blurRadius: h ? 20 : 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ]
-                  : null,
+              color: filled
+                  ? (h ? p.primary.withValues(alpha: 0.9) : p.primary)
+                  : (h ? p.soft : p.surface),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: filled ? p.primary : p.line),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: (!filled && h) ? p.cs.onPrimaryContainer : fg,
-                ),
+                Icon(icon, size: 16, color: fg),
                 const SizedBox(width: 8),
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: (!filled && h) ? p.cs.onPrimaryContainer : fg,
-                  ),
+                  style: p.t(12.5, w: FontWeight.w700, c: fg),
                 ),
               ],
             ),
@@ -619,21 +499,21 @@ class _OrderView extends StatelessWidget {
   Widget? _forwardAction(BuildContext context) {
     switch (order.status.toLowerCase()) {
       case 'pending':
-        return _ghostButton(
+        return _btn(
           icon: PhosphorIconsBold.check,
           label: 'Accept order',
           filled: true,
           onTap: () => _accept(context),
         );
       case 'accepted':
-        return _ghostButton(
+        return _btn(
           icon: PhosphorIconsBold.checkCircle,
           label: 'Mark delivered',
           filled: true,
           onTap: () => _deliver(context),
         );
       case 'delivered':
-        return _ghostButton(
+        return _btn(
           icon: PhosphorIconsRegular.arrowCounterClockwise,
           label: 'Process return',
           onTap: () => _returnOrder(context),
@@ -644,18 +524,108 @@ class _OrderView extends StatelessWidget {
   }
 
   // --------------------------------------------------------------------
-  // Timeline (adapts to rejected / cancelled / returned)
+  // KPI strip: one bordered card, divided cells
   // --------------------------------------------------------------------
 
-  Widget _timeline(BuildContext context) {
+  Widget _kpiStrip(BuildContext context, double w) {
+    final p = _P(context);
+    final units = order.items.fold<num>(0, (a, i) => a + i.quantity);
+    final stats = <(IconData, String, String, bool)>[
+      (PhosphorIconsRegular.wallet, 'Grand total', _rs(order.total), true),
+      (
+        PhosphorIconsRegular.package,
+        'Items',
+        '${order.items.length} items · $units units',
+        false,
+      ),
+      (
+        PhosphorIconsRegular.creditCard,
+        'Payment',
+        order.paymentMethod.isEmpty ? '—' : order.paymentMethod,
+        false,
+      ),
+      (
+        PhosphorIconsRegular.user,
+        'Customer',
+        order.userName.isEmpty ? '—' : order.userName,
+        false,
+      ),
+    ];
+    final cols = w >= 760 ? 4 : 2;
+
+    final rows = <Widget>[];
+    for (var i = 0; i < stats.length; i += cols) {
+      final slice = stats.sublist(i, math.min(i + cols, stats.length));
+      rows.add(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var j = 0; j < slice.length; j++) ...[
+                if (j > 0) VerticalDivider(width: 1, color: p.line),
+                Expanded(child: _kpiCell(p, slice[j])),
+              ],
+            ],
+          ),
+        ),
+      );
+      if (i + cols < stats.length) {
+        rows.add(Divider(height: 1, color: p.line));
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: _cardDeco(p),
+      child: Column(children: rows),
+    );
+  }
+
+  Widget _kpiCell(_P p, (IconData, String, String, bool) s) {
+    final hero = s.$4;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  s.$2.toUpperCase(),
+                  style: p.t(10, w: FontWeight.w700, c: p.muted, ls: 1),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  s.$3,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: p.t(
+                    hero ? 24 : 18,
+                    w: FontWeight.w800,
+                    c: hero ? p.primary : p.ink,
+                    ls: hero ? -0.3 : 0,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --------------------------------------------------------------------
+  // Progress stepper (adapts to cancelled / returned)
+  // --------------------------------------------------------------------
+
+  Widget _timeline(BuildContext context, double pageW) {
     final p = _P(context);
     final s = order.status.toLowerCase();
     late final List<String> labels;
     late int current;
     switch (s) {
-      case 'rejected':
-        labels = ['Pending', 'Rejected'];
-        current = 1;
       case 'cancelled':
         labels = ['Pending', 'Cancelled'];
         current = 1;
@@ -670,83 +640,75 @@ class _OrderView extends StatelessWidget {
     final currentColor = _statusColor(context, order.status);
     final n = labels.length;
 
-    return _card(
+    return _section(
       context,
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardHeader(
-            context,
-            PhosphorIconsRegular.path,
-            'Order progress',
-            trailing: Text(
+      icon: PhosphorIconsRegular.path,
+      title: 'Order progress',
+      trailing: pageW >= 700
+          ? Text(
               _statusMessage(order.status),
               textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: p.t(12, c: p.muted),
-            ),
-          ),
-          const SizedBox(height: 26),
-          LayoutBuilder(
-            builder: (context, box) {
-              final tw = box.maxWidth;
-              final inset = tw / (2 * n);
-              final lineW = math.max(0.0, tw - 2 * inset);
-              final frac = n <= 1 ? 0.0 : current / (n - 1);
-              return Stack(
+            )
+          : null,
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 22),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final tw = box.maxWidth;
+          final inset = tw / (2 * n);
+          final lineW = math.max(0.0, tw - 2 * inset);
+          final frac = n <= 1 ? 0.0 : current / (n - 1);
+          return Stack(
+            children: [
+              Positioned(
+                left: inset,
+                right: inset,
+                top: 15,
+                child: Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: p.line,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: inset,
+                top: 15,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOutCubic,
+                  width: lineW * frac,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(2),
+                    gradient: LinearGradient(
+                      colors: [p.primary, negative ? currentColor : p.primary],
+                    ),
+                  ),
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Positioned(
-                    left: inset,
-                    right: inset,
-                    top: 19,
-                    child: Container(
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: p.line,
-                        borderRadius: BorderRadius.circular(3),
+                  for (var i = 0; i < n; i++)
+                    Expanded(
+                      child: _step(
+                        context,
+                        label: labels[i],
+                        index: i,
+                        current: current,
+                        negativeEnd: negative,
+                        currentColor: currentColor,
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: inset,
-                    top: 19,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 500),
-                      curve: Curves.easeOutCubic,
-                      width: lineW * frac,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(3),
-                        gradient: LinearGradient(
-                          colors: [
-                            p.primary,
-                            negative ? currentColor : p.primary,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < n; i++)
-                        Expanded(
-                          child: _step(
-                            context,
-                            label: labels[i],
-                            index: i,
-                            current: current,
-                            negativeEnd: negative,
-                            currentColor: currentColor,
-                          ),
-                        ),
-                    ],
-                  ),
                 ],
-              );
-            },
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -771,11 +733,11 @@ class _OrderView extends StatelessWidget {
     if (done || deliveredFinal) {
       fill = deliveredFinal ? currentColor : p.primary;
       border = fill;
-      iconColor = Colors.white;
+      iconColor = p.onPrimary;
     } else if (terminal) {
       fill = currentColor;
       border = currentColor;
-      iconColor = Colors.white;
+      iconColor = p.onPrimary;
     } else if (isCurrent) {
       fill = currentColor.withValues(alpha: 0.12);
       border = currentColor;
@@ -786,21 +748,19 @@ class _OrderView extends StatelessWidget {
       iconColor = p.muted;
     }
 
-    final caption = done
-        ? 'Completed'
-        : deliveredFinal
+    final caption = (done || deliveredFinal)
         ? 'Completed'
         : terminal
         ? label
         : isCurrent
-        ? 'Current'
+        ? 'In progress'
         : 'Upcoming';
 
     return Column(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(shape: BoxShape.circle, color: p.surface),
           child: Container(
             decoration: BoxDecoration(
@@ -810,18 +770,20 @@ class _OrderView extends StatelessWidget {
               boxShadow: isCurrent
                   ? [
                       BoxShadow(
-                        color: currentColor.withValues(alpha: 0.35),
-                        blurRadius: 14,
+                        color: currentColor.withValues(alpha: 0.25),
+                        blurRadius: 10,
                         spreadRadius: 1,
                       ),
                     ]
                   : null,
             ),
-            child: Icon(
-              done ? PhosphorIconsBold.check : _statusIcon(label),
-              size: 18,
-              color: iconColor,
-            ),
+            child: (done || terminal || deliveredFinal)
+                ? Icon(
+                    done ? PhosphorIconsBold.check : _statusIcon(label),
+                    size: 15,
+                    color: iconColor,
+                  )
+                : null,
           ),
         ),
         const SizedBox(height: 10),
@@ -857,67 +819,69 @@ class _OrderView extends StatelessWidget {
   Widget _reasonCard(BuildContext context) {
     final p = _P(context);
     final color = _statusColor(context, order.status);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(_statusIcon(order.status), size: 20, color: color),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'REASON · ${order.status.toUpperCase()}',
-                  style: p.t(10.5, w: FontWeight.w800, c: color, ls: 1.1),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(width: 4, color: color),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(_statusIcon(order.status), size: 20, color: color),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'REASON · ${order.status.toUpperCase()}',
+                              style: p.t(
+                                10.5,
+                                w: FontWeight.w800,
+                                c: color,
+                                ls: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              order.statusReason!.trim(),
+                              style: p.t(14, w: FontWeight.w600, h: 1.5),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  order.statusReason!.trim(),
-                  style: p.t(14, w: FontWeight.w600, h: 1.5),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _noteCard(BuildContext context) {
     final p = _P(context);
-    return _card(
+    return _section(
       context,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardHeader(
-            context,
-            PhosphorIconsRegular.notePencil,
-            'Customer note',
-          ),
-          const SizedBox(height: 14),
-          Text(order.notes!.trim(), style: p.t(13.5, c: p.muted, h: 1.55)),
-        ],
-      ),
+      icon: PhosphorIconsRegular.notePencil,
+      title: 'Customer note',
+      child: Text(order.notes!.trim(), style: p.t(13.5, c: p.muted, h: 1.6)),
     );
   }
-
-  Widget _itemsCard(BuildContext context) => _ItemsCard(items: order.items);
 
   // --------------------------------------------------------------------
   // Delivery + bill
@@ -925,125 +889,100 @@ class _OrderView extends StatelessWidget {
 
   Widget _deliveryCard(BuildContext context) {
     final p = _P(context);
-    return _card(
+    return _section(
       context,
+      icon: PhosphorIconsRegular.truck,
+      title: 'Delivery information',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader(
-            context,
-            PhosphorIconsRegular.truck,
-            'Delivery information',
-          ),
-          const SizedBox(height: 18),
-          _Hover(
-            onTap: () => CommonController.openMapsByCoordinates(
-              order.location.latitude,
-              order.location.longitude,
-            ),
-            builder: (hovering) => AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: p.primary.withValues(alpha: hovering ? 0.1 : 0.05),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: p.primary.withValues(alpha: hovering ? 0.4 : 0.2),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 14,
+            runSpacing: 12,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: p.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  PhosphorIconsFill.mapPin,
+                  size: 20,
+                  color: p.primary,
                 ),
               ),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 14,
-                runSpacing: 12,
-                children: [
-                  Row(
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 160, maxWidth: 520),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'DELIVERY ADDRESS',
+                      style: p.t(10, w: FontWeight.w700, c: p.muted, ls: 1),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      order.deliveryAddress.isEmpty
+                          ? 'No address provided'
+                          : order.deliveryAddress,
+                      style: p.t(13.5, w: FontWeight.w600, h: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+              _Hover(
+                onTap: () => CommonController.openMapsByCoordinates(
+                  order.location.latitude,
+                  order.location.longitude,
+                ),
+                builder: (h) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 140),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: h ? p.primary.withValues(alpha: 0.08) : p.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: h ? p.primary.withValues(alpha: 0.5) : p.line,
+                    ),
+                  ),
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(11),
-                        decoration: BoxDecoration(
-                          color: p.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          PhosphorIconsFill.mapPin,
-                          size: 21,
-                          color: p.primary,
-                        ),
+                      Icon(
+                        PhosphorIconsBold.navigationArrow,
+                        size: 14,
+                        color: p.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Open in Maps',
+                        style: p.t(12, w: FontWeight.w700, c: p.primary),
                       ),
                     ],
                   ),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minWidth: 160,
-                      maxWidth: 560,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'DELIVERY ADDRESS',
-                          style: p.t(
-                            10,
-                            w: FontWeight.w800,
-                            c: p.muted,
-                            ls: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          order.deliveryAddress.isEmpty
-                              ? 'No address provided'
-                              : order.deliveryAddress,
-                          style: p.t(13.5, w: FontWeight.w700, h: 1.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: p.primary,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          PhosphorIconsBold.navigationArrow,
-                          size: 14,
-                          color: p.cs.onPrimary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Open in Maps',
-                          style: p.t(
-                            11.5,
-                            w: FontWeight.w800,
-                            c: p.cs.onPrimary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          Divider(height: 1, color: p.line),
+          const SizedBox(height: 18),
           LayoutBuilder(
             builder: (context, box) {
               final two = box.maxWidth >= 520;
-              final w = two ? (box.maxWidth - 12) / 2 : box.maxWidth;
+              final cw = two ? (box.maxWidth - 16) / 2 : box.maxWidth;
               return Wrap(
-                spacing: 12,
-                runSpacing: 12,
+                spacing: 16,
+                runSpacing: 16,
                 children: [
                   SizedBox(
-                    width: w,
+                    width: cw,
                     child: _metaTile(
                       p,
                       PhosphorIconsRegular.calendarBlank,
@@ -1052,7 +991,7 @@ class _OrderView extends StatelessWidget {
                     ),
                   ),
                   SizedBox(
-                    width: w,
+                    width: cw,
                     child: _metaTile(
                       p,
                       PhosphorIconsRegular.creditCard,
@@ -1071,15 +1010,15 @@ class _OrderView extends StatelessWidget {
 
   Widget _metaTile(_P p, IconData icon, String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: p.soft,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: p.line),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: p.muted),
+          Icon(icon, size: 17, color: p.muted),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1087,7 +1026,7 @@ class _OrderView extends StatelessWidget {
               children: [
                 Text(
                   label.toUpperCase(),
-                  style: p.t(10, w: FontWeight.w800, c: p.muted, ls: 1.1),
+                  style: p.t(10, w: FontWeight.w700, c: p.muted, ls: 1),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -1106,96 +1045,60 @@ class _OrderView extends StatelessWidget {
 
   Widget _billCard(BuildContext context) {
     final p = _P(context);
-    final billUrl = order.billImageUrl!;
-    return _card(
-      context,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final billUrl = order.billImageUrl ?? '';
+    final hasBill = billUrl.isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: _cardDeco(p),
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 12,
+        runSpacing: 12,
         children: [
-          _cardHeader(context, PhosphorIconsRegular.receipt, 'Bill image'),
-          const SizedBox(height: 16),
-          _Hover(
-            onTap: () => Get.to(
-              () =>
-                  BillViewScreen(billImageUrl: billUrl, orderId: order.orderId),
-            ),
-            builder: (hovering) => ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                height: 220,
-                width: double.infinity,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: p.soft,
-                  border: Border.all(color: p.line),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    AnimatedScale(
-                      duration: const Duration(milliseconds: 260),
-                      scale: hovering ? 1.03 : 1,
-                      child: Image.network(
-                        billUrl,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) {
-                          if (progress == null) return child;
-                          return LoadingPlaceholder.fromColors(
-                            baseColor: Colors.grey[300]!,
-                            highlightColor: Colors.grey[100]!,
-                            child: Container(color: p.surface),
-                          );
-                        },
-                        errorBuilder: (_, _, _) => Center(
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 34,
-                            color: p.muted,
-                          ),
-                        ),
-                      ),
-                    ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      color: Colors.black.withValues(alpha: hovering ? 0.3 : 0),
-                    ),
-                    Positioned(
-                      right: 12,
-                      bottom: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.65),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(
-                              PhosphorIconsBold.magnifyingGlassPlus,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'View full bill',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Icon(
+                  PhosphorIconsRegular.receipt,
+                  size: 20,
+                  color: p.muted,
                 ),
               ),
-            ),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Bill', style: p.t(14.5, w: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(
+                    hasBill
+                        ? '1 image attached to this order'
+                        : 'No bill uploaded for this order',
+                    style: p.t(12, c: p.muted),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          _btn(
+            icon: PhosphorIconsRegular.eye,
+            label: 'See bill image',
+            onTap: () {
+              if (!hasBill) {
+                MessageToast.showToast(msg: 'No bill image for this order');
+                return;
+              }
+              Get.dialog(_BillDialog(order: order, billUrl: billUrl));
+            },
           ),
         ],
       ),
@@ -1229,12 +1132,12 @@ class _OrderView extends StatelessWidget {
           ..add(
             _actionTile(
               context,
-              icon: PhosphorIconsRegular.prohibit,
-              title: 'Reject order',
+              icon: PhosphorIconsRegular.xCircle,
+              title: 'Cancel order',
               subtitle:
-                  'Decline it. Stock is restored and the customer is told.',
+                  'Stop this order. Stock is restored and the customer is told.',
               color: p.error,
-              onTap: () => _rejectOrder(context),
+              onTap: () => _cancelOrder(context),
             ),
           );
       case 'accepted':
@@ -1268,7 +1171,7 @@ class _OrderView extends StatelessWidget {
             icon: PhosphorIconsRegular.arrowCounterClockwise,
             title: 'Process a return',
             subtitle: 'The customer sent items back. Choose to restock or not.',
-            color: p.cs.secondary,
+            color: p.secondary,
             onTap: () => _returnOrder(context),
           ),
         );
@@ -1276,16 +1179,16 @@ class _OrderView extends StatelessWidget {
         final color = _statusColor(context, order.status);
         children.add(
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: color.withValues(alpha: 0.3)),
+              color: color.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: color.withValues(alpha: 0.25)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(_statusIcon(order.status), size: 20, color: color),
+                Icon(_statusIcon(order.status), size: 19, color: color),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1295,7 +1198,7 @@ class _OrderView extends StatelessWidget {
                         'Order ${order.status.toLowerCase()}',
                         style: p.t(13.5, w: FontWeight.w800, c: color),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         'This order is closed, so there are no more actions.',
                         style: p.t(12, c: p.muted, h: 1.45),
@@ -1309,15 +1212,13 @@ class _OrderView extends StatelessWidget {
         );
     }
 
-    return _card(
+    return _section(
       context,
+      icon: PhosphorIconsRegular.lightning,
+      title: 'Order actions',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardHeader(context, PhosphorIconsRegular.lightning, 'Order actions'),
-          const SizedBox(height: 16),
-          ...children,
-        ],
+        children: children,
       ),
     );
   }
@@ -1332,46 +1233,25 @@ class _OrderView extends StatelessWidget {
     bool filled = false,
   }) {
     final p = _P(context);
-    final onColor = filled ? p.cs.onPrimary : color;
+    final onColor = filled ? p.onPrimary : color;
     return _Hover(
       onTap: onTap,
       builder: (hovering) => AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        transform: Matrix4.translationValues(0, hovering ? -1.5 : 0, 0),
-        padding: const EdgeInsets.all(14),
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: filled
-              ? color
-              : color.withValues(alpha: hovering ? 0.1 : 0.05),
-          borderRadius: BorderRadius.circular(14),
+              ? (hovering ? color.withValues(alpha: 0.92) : color)
+              : color.withValues(alpha: hovering ? 0.08 : 0.03),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: filled
                 ? color
-                : color.withValues(alpha: hovering ? 0.5 : 0.28),
+                : color.withValues(alpha: hovering ? 0.5 : 0.3),
           ),
-          boxShadow: filled
-              ? [
-                  BoxShadow(
-                    color: color.withValues(alpha: hovering ? 0.4 : 0.25),
-                    blurRadius: hovering ? 20 : 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : null,
         ),
         child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: filled
-                    ? Colors.white.withValues(alpha: 0.18)
-                    : color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 18, color: onColor),
-            ),
-            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1392,11 +1272,6 @@ class _OrderView extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              PhosphorIconsRegular.caretRight,
-              size: 16,
-              color: onColor.withValues(alpha: 0.8),
-            ),
           ],
         ),
       ),
@@ -1409,83 +1284,77 @@ class _OrderView extends StatelessWidget {
 
   Widget _summaryCard(BuildContext context) {
     final p = _P(context);
-    final onPc = p.cs.onPrimaryContainer;
     Widget row(String label, double amount, {bool negative = false}) => Padding(
-      padding: const EdgeInsets.only(bottom: 11),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: p.t(13, c: p.muted)),
           Text(
             '${negative ? '− ' : ''}${_rs(amount)}',
-            style: p.t(13, w: FontWeight.w700),
+            style: p.t(
+              13,
+              w: FontWeight.w700,
+              c: negative ? AppColors.ok : p.ink,
+            ),
           ),
         ],
       ),
     );
-    return _card(
+    return _section(
       context,
+      icon: PhosphorIconsRegular.wallet,
+      title: 'Payment summary',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader(context, PhosphorIconsRegular.wallet, 'Payment summary'),
-          const SizedBox(height: 18),
           row('Items total', order.subtotal),
           row('Delivery fee', order.deliveryFee),
           row('Service charges', order.serviceFee),
           if (order.discount > 0)
             row('Discount', order.discount, negative: true),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: p.cs.primaryContainer,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'GRAND TOTAL',
-                        style: p.t(
-                          10,
-                          w: FontWeight.w800,
-                          c: onPc.withValues(alpha: 0.7),
-                          ls: 1.2,
-                        ),
+          Divider(height: 8, color: p.line),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'GRAND TOTAL',
+                      style: p.t(10, w: FontWeight.w700, c: p.muted, ls: 1),
+                    ),
+                    const SizedBox(height: 4),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _rs(order.total),
+                        style: p.t(24, w: FontWeight.w800, ls: -0.5),
                       ),
-                      const SizedBox(height: 6),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          _rs(order.total),
-                          style: p.t(24, w: FontWeight.w800, c: onPc, ls: -0.4),
-                        ),
-                      ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              if (order.paymentMethod.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: p.soft,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: p.line),
+                  ),
+                  child: Text(
+                    order.paymentMethod,
+                    style: p.t(11, w: FontWeight.w700, c: p.muted),
                   ),
                 ),
-                if (order.paymentMethod.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      order.paymentMethod,
-                      style: p.t(11, w: FontWeight.w700, c: onPc),
-                    ),
-                  ),
-              ],
-            ),
+            ],
           ),
         ],
       ),
@@ -1494,13 +1363,13 @@ class _OrderView extends StatelessWidget {
 
   Widget _customerCard(BuildContext context) {
     final p = _P(context);
-    return _card(
+    return _section(
       context,
+      icon: PhosphorIconsRegular.user,
+      title: 'Customer',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _cardHeader(context, PhosphorIconsRegular.user, 'Customer'),
-          const SizedBox(height: 16),
           Obx(() {
             final user = users.selectedUser.value;
             final loading = users.isUserLoading.value;
@@ -1508,8 +1377,8 @@ class _OrderView extends StatelessWidget {
               children: [
                 loading
                     ? Container(
-                        width: 54,
-                        height: 54,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: p.soft,
@@ -1517,8 +1386,8 @@ class _OrderView extends StatelessWidget {
                         ),
                         child: const Center(
                           child: SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 18,
+                            height: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
@@ -1601,13 +1470,13 @@ class _OrderView extends StatelessWidget {
     return _Hover(
       onTap: onTap,
       builder: (hovering) => AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
           color: filled
-              ? p.primary.withValues(alpha: hovering ? 0.16 : 0.08)
+              ? p.primary.withValues(alpha: hovering ? 0.14 : 0.07)
               : (hovering ? p.soft : p.surface),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: filled ? p.primary.withValues(alpha: 0.35) : p.line,
           ),
@@ -1637,17 +1506,29 @@ class _OrderView extends StatelessWidget {
   Widget _avatar(BuildContext context, UserModel? user) {
     final p = _P(context);
     final imageUrl = user?.image;
+    final parts = order.userName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((e) => e.isNotEmpty)
+        .toList();
+    final initials = parts.isEmpty
+        ? '?'
+        : parts.take(2).map((e) => e[0].toUpperCase()).join();
     final fallback = Container(
       color: p.primary.withValues(alpha: 0.1),
-      child: Icon(PhosphorIconsRegular.user, size: 24, color: p.primary),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: p.t(15, w: FontWeight.w800, c: p.primary),
+      ),
     );
     return Container(
-      width: 54,
-      height: 54,
+      width: 48,
+      height: 48,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: p.primary.withValues(alpha: 0.3), width: 2),
+        border: Border.all(color: p.line, width: 1.5),
       ),
       child: ClipOval(
         child: imageUrl != null && imageUrl.isNotEmpty
@@ -1664,98 +1545,86 @@ class _OrderView extends StatelessWidget {
   Widget _riderCard(BuildContext context) {
     final p = _P(context);
     final controller = Get.find<OrderActionsController>();
-    return _card(
+    return _section(
       context,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _cardHeader(
-            context,
-            PhosphorIconsRegular.motorcycle,
-            'Rider assignment',
-          ),
-          const SizedBox(height: 16),
-          Obx(() {
-            if (controller.loadingRiders.value) {
-              return ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: const LinearProgressIndicator(minHeight: 4),
-              );
-            }
-            if (controller.error.value != null && controller.riders.isEmpty) {
-              return ErrorRetryWidget(
-                errorMessage: controller.error.value!,
-                onRetry: controller.reloadRiders,
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CommonDropdown<String>(
-                  label: 'Assign rider',
-                  value: controller.assignedRiderId.value ?? '',
-                  bottomSpacing: 0,
-                  items: [
-                    const DropdownMenuItem(
-                      value: '',
-                      child: Text('Not assigned'),
+      icon: PhosphorIconsRegular.motorcycle,
+      title: 'Rider assignment',
+      child: Obx(() {
+        if (controller.loadingRiders.value) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: const LinearProgressIndicator(minHeight: 4),
+          );
+        }
+        if (controller.error.value != null && controller.riders.isEmpty) {
+          return ErrorRetryWidget(
+            errorMessage: controller.error.value!,
+            onRetry: controller.reloadRiders,
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CommonDropdown<String>(
+              label: 'Assign rider',
+              value: controller.assignedRiderId.value ?? '',
+              bottomSpacing: 0,
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Not assigned')),
+                ...controller.riders.map(
+                  (rider) => DropdownMenuItem(
+                    value: rider.id,
+                    child: Text(
+                      '${rider.name} · ${rider.phone}',
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    ...controller.riders.map(
-                      (rider) => DropdownMenuItem(
-                        value: rider.id,
-                        child: Text(
-                          '${rider.name} · ${rider.phone}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ),
-                  ],
-                  onChanged: _isClosed
-                      ? null
-                      : (value) async {
-                          final riderId = value == null || value.isEmpty
-                              ? null
-                              : value;
-                          final rider = controller.riders.firstWhereOrNull(
-                            (item) => item.id == riderId,
-                          );
-                          final confirmed = await CommonDialog.confirm(
-                            context: context,
-                            title: riderId == null
-                                ? 'Remove rider assignment?'
-                                : 'Assign this rider?',
-                            message: riderId == null
-                                ? 'This order will no longer be assigned to a rider.'
-                                : 'Assign ${rider?.name ?? 'the selected rider'} to this order?',
-                            icon: PhosphorIconsRegular.motorcycle,
-                            iconColor: p.primary,
-                            positiveButtonText: riderId == null
-                                ? 'Remove assignment'
-                                : 'Assign rider',
-                          );
-                          if (confirmed != true) return;
-                          try {
-                            await controller.assignRider(riderId);
-                          } catch (exception) {
-                            MessageToast.showError(
-                              msg: exception.toString(),
-                              title: 'Could not assign rider',
-                            );
-                          }
-                        },
-                ),
-                if (_isClosed) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Riders can’t be changed on a closed order.',
-                    style: p.t(11.5, c: p.muted),
                   ),
-                ],
+                ),
               ],
-            );
-          }),
-        ],
-      ),
+              onChanged: _isClosed
+                  ? null
+                  : (value) async {
+                      final riderId = value == null || value.isEmpty
+                          ? null
+                          : value;
+                      final rider = controller.riders.firstWhereOrNull(
+                        (item) => item.id == riderId,
+                      );
+                      final confirmed = await CommonDialog.confirm(
+                        context: context,
+                        title: riderId == null
+                            ? 'Remove rider assignment?'
+                            : 'Assign this rider?',
+                        message: riderId == null
+                            ? 'This order will no longer be assigned to a rider.'
+                            : 'Assign ${rider?.name ?? 'the selected rider'} to this order?',
+                        icon: PhosphorIconsRegular.motorcycle,
+                        iconColor: p.primary,
+                        positiveButtonText: riderId == null
+                            ? 'Remove assignment'
+                            : 'Assign rider',
+                      );
+                      if (confirmed != true) return;
+                      try {
+                        await controller.assignRider(riderId);
+                      } catch (exception) {
+                        MessageToast.showError(
+                          msg: exception.toString(),
+                          title: 'Could not assign rider',
+                        );
+                      }
+                    },
+            ),
+            if (_isClosed) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Riders can’t be changed on a closed order.',
+                style: p.t(11.5, c: p.muted),
+              ),
+            ],
+          ],
+        );
+      }),
     );
   }
 
@@ -1803,33 +1672,6 @@ class _OrderView extends StatelessWidget {
     );
   }
 
-  Future<void> _rejectOrder(BuildContext context) async {
-    final result = await _askReason(
-      context,
-      _ReasonKind(
-        title: 'Reject this order',
-        message:
-            'The customer will be told their order could not be fulfilled. '
-            'Items go back into stock.',
-        confirm: 'Reject order',
-        icon: PhosphorIconsRegular.prohibit,
-        color: Theme.of(context).colorScheme.error,
-        reasons: const [
-          'Out of stock',
-          'Cannot deliver to this area',
-          'Customer unreachable',
-          'Suspicious order',
-          'Other',
-        ],
-      ),
-    );
-    if (result == null) return;
-    await _withProgress(
-      'Rejecting order...',
-      () => orders.rejectOrder(order.id, reason: result.reason),
-    );
-  }
-
   Future<void> _cancelOrder(BuildContext context) async {
     final result = await _askReason(
       context,
@@ -1840,7 +1682,7 @@ class _OrderView extends StatelessWidget {
             'This can’t be undone.',
         confirm: 'Cancel order',
         icon: PhosphorIconsRegular.xCircle,
-        color: Theme.of(context).colorScheme.error,
+        color: _P(context).error,
         reasons: const [
           'Customer asked to cancel',
           'Item no longer available',
@@ -1867,7 +1709,7 @@ class _OrderView extends StatelessWidget {
             'You choose whether the items go back into stock.',
         confirm: 'Record return',
         icon: PhosphorIconsRegular.arrowCounterClockwise,
-        color: Theme.of(context).colorScheme.secondary,
+        color: _P(context).secondary,
         offerRestock: true,
         reasons: const [
           'Damaged item',
@@ -1925,66 +1767,69 @@ class _OrderView extends StatelessWidget {
   }
 
   // --------------------------------------------------------------------
-  // Shared building blocks
+  // Shared building block: titled section card with a header divider
   // --------------------------------------------------------------------
 
-  Widget _card(
+  Widget _section(
     BuildContext context, {
+    required IconData icon,
+    required String title,
     required Widget child,
+    Widget? trailing,
     EdgeInsetsGeometry? padding,
   }) {
     final p = _P(context);
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: p.line),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+      clipBehavior: Clip.antiAlias,
+      decoration: _cardDeco(p),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: p.primary.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 17, color: p.primary),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: p.t(14, w: FontWeight.w800, ls: -0.1),
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: trailing,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
+          Divider(height: 1, color: p.line),
+          Padding(padding: padding ?? const EdgeInsets.all(20), child: child),
         ],
       ),
-      child: child,
-    );
-  }
-
-  Widget _cardHeader(
-    BuildContext context,
-    IconData icon,
-    String title, {
-    Widget? trailing,
-  }) {
-    final p = _P(context);
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: p.cs.primaryContainer,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 17, color: p.cs.onPrimaryContainer),
-        ),
-        const SizedBox(width: 11),
-        Text(title, style: p.t(15, w: FontWeight.w800, ls: -0.1)),
-        if (trailing != null) ...[
-          const SizedBox(width: 12),
-          Expanded(
-            child: Align(alignment: Alignment.centerRight, child: trailing),
-          ),
-        ],
-      ],
     );
   }
 }
 
 // ============================================================================
-// Reason dialog (reject / cancel / return)
+// Reason dialog (cancel / return)
 // ============================================================================
 
 class _ReasonKind {
@@ -2040,7 +1885,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
       backgroundColor: p.surface,
       insetPadding: const EdgeInsets.all(20),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: p.line),
       ),
       child: ConstrainedBox(
@@ -2054,19 +1899,19 @@ class _ReasonDialogState extends State<_ReasonDialog> {
               Row(
                 children: [
                   Container(
-                    width: 46,
-                    height: 46,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
                       color: kind.color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(kind.icon, color: kind.color, size: 22),
+                    child: Icon(kind.icon, color: kind.color, size: 20),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
                       kind.title,
-                      style: p.t(18, w: FontWeight.w800, ls: -0.2),
+                      style: p.t(17, w: FontWeight.w800, ls: -0.2),
                     ),
                   ),
                   IconButton(
@@ -2092,7 +1937,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
                       label: Text(reason),
                       selected: _reason == reason,
                       showCheckmark: false,
-                      selectedColor: kind.color.withValues(alpha: 0.14),
+                      selectedColor: kind.color.withValues(alpha: 0.12),
                       side: BorderSide(
                         color: _reason == reason ? kind.color : p.line,
                       ),
@@ -2129,7 +1974,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
                   ),
                   decoration: BoxDecoration(
                     color: p.soft,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: p.line),
                   ),
                   child: Row(
@@ -2167,7 +2012,10 @@ class _ReasonDialogState extends State<_ReasonDialog> {
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(context).pop(),
                       style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(46),
+                        minimumSize: const Size.fromHeight(44),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       child: const Text('Back'),
                     ),
@@ -2187,10 +2035,10 @@ class _ReasonDialogState extends State<_ReasonDialog> {
                               );
                             },
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(46),
+                        minimumSize: const Size.fromHeight(44),
                         backgroundColor: kind.color,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: Text(kind.confirm),
@@ -2240,36 +2088,23 @@ class _HoverState extends State<_Hover> {
   }
 }
 
-// ============================================================================
-// Shared card look
-// ============================================================================
-
-BoxDecoration _cardDeco(_P p) => BoxDecoration(
-  color: p.surface,
-  borderRadius: BorderRadius.circular(24),
-  border: Border.all(color: p.line),
-  boxShadow: [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.04),
-      blurRadius: 24,
-      offset: const Offset(0, 8),
-    ),
-  ],
-);
-
 Widget _itemThumb(BuildContext context, OrderItem item) {
   final p = _P(context);
-  final fallback = Icon(PhosphorIconsRegular.image, size: 20, color: p.muted);
+  final name = item.productName.trim();
+  final fallback = Text(
+    name.isEmpty ? '?' : name[0].toUpperCase(),
+    style: p.t(16, w: FontWeight.w800, c: p.primary),
+  );
   return Container(
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
       color: p.soft,
       border: Border.all(color: p.line),
     ),
     child: ClipRRect(
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: BorderRadius.circular(9),
       child: item.imageUrl != null && item.imageUrl!.isNotEmpty
           ? Image.network(
               item.imageUrl!,
@@ -2290,7 +2125,7 @@ Widget _itemThumb(BuildContext context, OrderItem item) {
 }
 
 // ============================================================================
-// Items: first 3 shown, "See more" expands the rest
+// Items: data table, first 3 shown, "See more" expands the rest
 // ============================================================================
 
 class _ItemsCard extends StatefulWidget {
@@ -2329,31 +2164,18 @@ class _ItemsCardState extends State<_ItemsCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(22, 20, 22, 16),
+                padding: const EdgeInsets.fromLTRB(20, 15, 20, 14),
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: p.cs.primaryContainer,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        PhosphorIconsRegular.shoppingBag,
-                        size: 17,
-                        color: p.cs.onPrimaryContainer,
-                      ),
-                    ),
-                    const SizedBox(width: 11),
                     Text(
                       'Order items',
-                      style: p.t(15, w: FontWeight.w800, ls: -0.1),
+                      style: p.t(14.5, w: FontWeight.w800, ls: -0.1),
                     ),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
                         color: p.soft,
@@ -2368,12 +2190,13 @@ class _ItemsCardState extends State<_ItemsCard> {
                   ],
                 ),
               ),
-              if (!compact)
+              Divider(height: 1, color: p.line),
+              if (!compact) ...[
                 Container(
                   color: p.soft,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 11,
+                    horizontal: 20,
+                    vertical: 10,
                   ),
                   child: Row(
                     children: [
@@ -2385,7 +2208,8 @@ class _ItemsCardState extends State<_ItemsCard> {
                     ],
                   ),
                 ),
-              Divider(height: 1, color: p.line),
+                Divider(height: 1, color: p.line),
+              ],
               AnimatedSize(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
@@ -2404,10 +2228,11 @@ class _ItemsCardState extends State<_ItemsCard> {
                 Divider(height: 1, color: p.line),
                 _toggle(p, hidden),
               ],
+              Divider(height: 1, color: p.line),
               Container(
                 color: p.soft,
                 padding: EdgeInsets.symmetric(
-                  horizontal: compact ? 16 : 22,
+                  horizontal: compact ? 16 : 20,
                   vertical: 14,
                 ),
                 child: Row(
@@ -2426,14 +2251,13 @@ class _ItemsCardState extends State<_ItemsCard> {
   }
 
   Widget _toggle(_P p, int hidden) {
-    final fg = p.cs.onPrimaryContainer;
     return _Hover(
       onTap: () => setState(() => _expanded = !_expanded),
       builder: (h) => AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 140),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        color: p.cs.primaryContainer.withValues(alpha: h ? 0.75 : 0.4),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        color: h ? p.primary.withValues(alpha: 0.06) : Colors.transparent,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -2441,15 +2265,15 @@ class _ItemsCardState extends State<_ItemsCard> {
               _expanded
                   ? 'Show less'
                   : 'See $hidden more ${hidden == 1 ? 'item' : 'items'}',
-              style: p.t(13, w: FontWeight.w800, c: fg),
+              style: p.t(12.5, w: FontWeight.w800, c: p.primary),
             ),
             const SizedBox(width: 8),
             Icon(
               _expanded
                   ? PhosphorIconsBold.caretUp
                   : PhosphorIconsBold.caretDown,
-              size: 14,
-              color: fg,
+              size: 13,
+              color: p.primary,
             ),
           ],
         ),
@@ -2460,7 +2284,7 @@ class _ItemsCardState extends State<_ItemsCard> {
   Widget _th(_P p, String text, {bool right = false}) => Text(
     text,
     textAlign: right ? TextAlign.right : TextAlign.left,
-    style: p.t(10, w: FontWeight.w800, c: p.muted, ls: 1.2),
+    style: p.t(10, w: FontWeight.w700, c: p.muted, ls: 1.1),
   );
 
   Widget _row(BuildContext context, OrderItem item, int number, bool compact) {
@@ -2470,11 +2294,11 @@ class _ItemsCardState extends State<_ItemsCard> {
       builder: (hovering) => AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         color: hovering
-            ? p.primary.withValues(alpha: 0.04)
+            ? p.primary.withValues(alpha: 0.035)
             : Colors.transparent,
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 16 : 22,
-          vertical: 13,
+          horizontal: compact ? 16 : 20,
+          vertical: 12,
         ),
         child: compact
             ? Row(
@@ -2541,20 +2365,17 @@ class _ItemsCardState extends State<_ItemsCard> {
                       alignment: Alignment.centerLeft,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
+                          horizontal: 9,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: p.cs.primaryContainer,
-                          borderRadius: BorderRadius.circular(8),
+                          color: p.soft,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: p.line),
                         ),
                         child: Text(
                           '×${item.quantity}',
-                          style: p.t(
-                            12,
-                            w: FontWeight.w800,
-                            c: p.cs.onPrimaryContainer,
-                          ),
+                          style: p.t(12, w: FontWeight.w800),
                         ),
                       ),
                     ),
@@ -2569,6 +2390,227 @@ class _ItemsCardState extends State<_ItemsCard> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Bill dialog: opens from "See bill image"
+// ============================================================================
+
+class _BillDialog extends StatelessWidget {
+  const _BillDialog({required this.order, required this.billUrl});
+
+  final OrderModel order;
+  final String billUrl;
+
+  Widget _row(_P p, String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: p.t(13, c: p.muted)),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: p.t(13, w: FontWeight.w700),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final p = _P(context);
+    final screenH = MediaQuery.of(context).size.height;
+    final imageH = math.min(560.0, math.max(300.0, screenH * 0.6));
+
+    final image = SizedBox(
+      height: imageH,
+      child: ColoredBox(
+        color: p.soft,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: InteractiveViewer(
+            minScale: 1,
+            maxScale: 5,
+            child: Center(
+              child: Image.network(
+                billUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return const Center(child: CircularProgressIndicator());
+                },
+                errorBuilder: (_, _, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.broken_image_outlined,
+                        size: 38,
+                        color: p.muted,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Could not load the bill image.',
+                        style: p.t(12.5, c: p.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final details = Padding(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _row(p, 'Customer', order.userName.isEmpty ? '—' : order.userName),
+          _row(
+            p,
+            'Payment',
+            order.paymentMethod.isEmpty ? '—' : order.paymentMethod,
+          ),
+          _row(p, 'Order date', _formatDateTime(order.orderDate)),
+          Divider(height: 8, color: p.line),
+          const SizedBox(height: 14),
+          Text(
+            'BILL TOTAL',
+            style: p.t(10, w: FontWeight.w700, c: p.muted, ls: 1.2),
+          ),
+          const SizedBox(height: 4),
+          Text(_rs(order.total), style: p.t(26, w: FontWeight.w800, ls: -0.6)),
+          const SizedBox(height: 22),
+          FilledButton(
+            onPressed: () {
+              Get.back();
+              Get.to(
+                () => BillViewScreen(
+                  billImageUrl: billUrl,
+                  orderId: order.orderId,
+                ),
+              );
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: p.primary,
+              foregroundColor: p.onPrimary,
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Open full size'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => Get.back(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: p.ink,
+              side: BorderSide(color: p.line),
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+
+    return Dialog(
+      backgroundColor: p.surface,
+      insetPadding: const EdgeInsets.all(20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: p.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 980),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 14, 14, 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: p.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        PhosphorIconsRegular.receipt,
+                        size: 18,
+                        color: p.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bill image',
+                            style: p.t(15.5, w: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Order #${order.orderId ?? order.id}',
+                            style: p.t(12, c: p.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Get.back(),
+                      icon: Icon(Icons.close_rounded, color: p.muted),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: p.line),
+              LayoutBuilder(
+                builder: (context, box) {
+                  if (box.maxWidth >= 720) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: image),
+                        Container(
+                          width: 320,
+                          decoration: BoxDecoration(
+                            border: Border(left: BorderSide(color: p.line)),
+                          ),
+                          child: details,
+                        ),
+                      ],
+                    );
+                  }
+                  return Column(children: [image, details]);
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
